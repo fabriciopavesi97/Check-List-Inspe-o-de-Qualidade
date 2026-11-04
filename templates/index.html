@@ -164,6 +164,9 @@
 </div>
 
 <script>
+    // Preenche a data de hoje automaticamente no campo de data
+    document.getElementById('data_inspecao').valueAsDate = new Date();
+
     function adicionarDefeito() {
         const container = document.getElementById('container-defeitos');
         const primeiroBox = container.querySelector('.defeito-card');
