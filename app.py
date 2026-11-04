@@ -66,17 +66,30 @@ init_db()
 @app.route('/', methods=['GET'])
 def index():
     sucesso = request.args.get('sucesso')
+    edit_id = request.args.get('edit_id')
+    registro = None
+
+    if edit_id:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, observacao FROM checklist_qualidade WHERE id = %s;", (edit_id,))
+        registro = cur.fetchone()
+        cur.close()
+        conn.close()
+
     return render_template(
         'index.html', 
         inspetores=INSPETORES, 
         locais=LOCAIS_INSPECAO, 
         tamanhos=TAMANHOS, 
         defeitos=DEFEITOS,
-        sucesso=sucesso
+        sucesso=sucesso,
+        registro=registro
     )
 
 @app.route('/salvar', methods=['POST'])
 def salvar():
+    registro_id = request.form.get('registro_id')
     data_inspecao = request.form.get('data_inspecao')
     inspetor = request.form.get('inspetor')
     fornecedor = request.form.get('fornecedor')
@@ -95,32 +108,50 @@ def salvar():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    for tam, def_, qtd_def in zip(tamanhos, lista_defeitos, qtds_defeitos):
-        if def_:
+    # Se estiver editando um registro existente
+    if registro_id:
+        # Atualiza o primeiro item com o ID existente
+        if len(tamanhos) > 0 and lista_defeitos[0]:
             cur.execute('''
-                INSERT INTO checklist_qualidade (
-                    data_inspecao, inspetor, fornecedor, nr_op, familia, 
-                    referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, 
-                    tamanho, defeito, qtd_defeitos, observacao
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                UPDATE checklist_qualidade SET
+                    data_inspecao = %s, inspetor = %s, fornecedor = %s, nr_op = %s, 
+                    familia = %s, referencia_prod = %s, local_inspecao = %s, 
+                    qtd_prontas = %s, qtd_inspecionadas = %s, tamanho = %s, 
+                    defeito = %s, qtd_defeitos = %s, observacao = %s
+                WHERE id = %s
             ''', (
                 data_inspecao, inspetor, fornecedor, nr_op, familia,
                 referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
-                tam, def_, qtd_def or 0, observacao
+                tamanhos[0], lista_defeitos[0], qtds_defeitos[0] or 0, observacao, registro_id
             ))
+    else:
+        # Criação normal (inserindo novos)
+        for tam, def_, qtd_def in zip(tamanhos, lista_defeitos, qtds_defeitos):
+            if def_:
+                cur.execute('''
+                    INSERT INTO checklist_qualidade (
+                        data_inspecao, inspetor, fornecedor, nr_op, familia, 
+                        referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, 
+                        tamanho, defeito, qtd_defeitos, observacao
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (
+                    data_inspecao, inspetor, fornecedor, nr_op, familia,
+                    referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
+                    tam, def_, qtd_def or 0, observacao
+                ))
 
     conn.commit()
     cur.close()
     conn.close()
 
-    # Redireciona de volta para a página inicial com o aviso de sucesso
     return redirect(url_for('index', sucesso=1))
 
 @app.route('/historico', methods=['GET'])
 def historico():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT data_inspecao, inspetor, fornecedor, nr_op, referencia_prod, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC LIMIT 50;")
+    # Sem limite (ilimitado) ordenado do mais recente para o mais antigo
+    cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, referencia_prod, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC;")
     registros = cur.fetchall()
     cur.close()
     conn.close()
@@ -133,7 +164,7 @@ def historico():
         <title>Histórico de Inspeções</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }
-            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+            .container { max-width: 1100px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
             h2 { color: #1e293b; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
@@ -141,12 +172,14 @@ def historico():
             tr:nth-child(even) { background-color: #f8fafc; }
             .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
             .btn-voltar:hover { background: #2563eb; }
+            .btn-editar { padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
+            .btn-editar:hover { background: #d97706; }
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>📊 Histórico de Inspeções Recentes</h2>
-            <p style="color: #64748b; font-size: 14px;">Últimos 50 registros salvos na nuvem.</p>
+            <h2>📊 Histórico de Inspeções (Completo e Ilimitado)</h2>
+            <p style="color: #64748b; font-size: 14px;">Todos os registros salvos na nuvem.</p>
             <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
             <table>
                 <tr>
@@ -158,10 +191,11 @@ def historico():
                     <th>Tamanho</th>
                     <th>Defeito</th>
                     <th>Qtd</th>
+                    <th>Ações</th>
                 </tr>
     '''
     for reg in registros:
-        html += f"<tr><td>{reg[0]}</td><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td></tr>"
+        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a></td></tr>"
     
     html += '''
             </table>
