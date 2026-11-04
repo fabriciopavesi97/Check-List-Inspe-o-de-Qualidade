@@ -114,6 +114,55 @@ def salvar():
     conn.close()
 
     return redirect(url_for('index'))
+    # Rota para visualizar os dados salvos em formato de tabela simples
+@app.route('/historico', methods=['GET'])
+def historico():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT data_inspecao, inspetor, fornecedor, nr_op, referencia_prod, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC LIMIT 50;")
+    registros = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    # HTML simples incorporado para exibir a tabela
+    html = '''
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Histórico de Inspeções</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; background: #f4f6f9; }
+            table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
+            th { background-color: #2c3e50; color: white; }
+            a { display: inline-block; padding: 10px 15px; background: #3498db; color: white; text-decoration: none; border-radius: 4px; }
+        </style>
+    </head>
+    <body>
+        <h2>Últimos Checklists Preenchidos</h2>
+        <a href="/">← Voltar para o Formulário</a>
+        <table>
+            <tr>
+                <th>Data</th>
+                <th>Inspetor</th>
+                <th>Fornecedor</th>
+                <th>N° OP</th>
+                <th>Referência</th>
+                <th>Tamanho</th>
+                <th>Defeito</th>
+                <th>Qtd</th>
+            </tr>
+    '''
+    for reg in registros:
+        html += f"<tr><td>{reg[0]}</td><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td></tr>"
+    
+    html += '''
+        </table>
+    </body>
+    </html>
+    '''
+    return html
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
