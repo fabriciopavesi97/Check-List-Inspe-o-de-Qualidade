@@ -4,16 +4,13 @@ from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
-# Listas extraídas exatamente do arquivo XLSX
+# Listas extraídas da planilha
 INSPETORES = ["Inspetor 1", "Inspetor 2", "Inspetor 3", "Inspetor 4"]
-
 LOCAIS_INSPECAO = ["Externa", "Ibirama", "Brusque"]
-
 TAMANHOS = [
     "PP", "P", "M", "G", "EG", "EGG", "PE", "ME", "GR", "XG",
     "1", "2", "3", "4", "6", "8", "10", "12", "14", "16", "18", "U"
 ]
-
 DEFEITOS = [
     "Alça Torcida", "Diferença de cavas", "Arremate com bolinha", "Arremate desencontrado",
     "Bainha cortada", "Bainha desencontrada", "Bainha torcida/enviasada", "Rebarba de bainha",
@@ -32,8 +29,41 @@ DEFEITOS = [
 ]
 
 def get_db_connection():
-    conn = psycopg2.connect(os.environ.get('DATABASE_URL'))
+    db_url = os.environ.get('DATABASE_URL')
+    conn = psycopg2.connect(db_url)
     return conn
+
+# Cria a tabela ao iniciar a aplicação para evitar erros
+def init_db():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS checklist_qualidade (
+                id SERIAL PRIMARY KEY,
+                data_inspecao DATE,
+                inspetor VARCHAR(100),
+                fornecedor VARCHAR(150),
+                nr_op VARCHAR(50),
+                familia VARCHAR(100),
+                referencia_prod VARCHAR(100),
+                local_inspecao VARCHAR(50),
+                qtd_prontas INT,
+                qtd_inspecionadas INT,
+                tamanho VARCHAR(20),
+                defeito VARCHAR(150),
+                qtd_defeitos INT,
+                observacao TEXT,
+                data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erro ao criar tabela: {e}")
+
+init_db()
 
 @app.route('/', methods=['GET'])
 def index():
@@ -63,29 +93,6 @@ def salvar():
 
     conn = get_db_connection()
     cur = conn.cursor()
-    
-    # Cria a tabela no PostgreSQL caso ainda não exista
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS checklist_qualidade (
-            id SERIAL PRIMARY KEY,
-            data_inspecao DATE,
-            inspetor VARCHAR(100),
-            fornecedor VARCHAR(150),
-            nr_op VARCHAR(50),
-            familia VARCHAR(100),
-            referencia_prod VARCHAR(100),
-            local_inspecao VARCHAR(50),
-            qtd_prontas INT,
-            qtd_inspecionadas INT,
-            tamanho VARCHAR(20),
-            defeito VARCHAR(150),
-            qtd_defeitos INT,
-            observacao TEXT,
-            data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    ''')
-
-    # Insere o registro de inspeção
     cur.execute('''
         INSERT INTO checklist_qualidade (
             data_inspecao, inspetor, fornecedor, nr_op, familia, 
@@ -97,7 +104,6 @@ def salvar():
         referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
         tamanho, defeito, qtd_defeitos, observacao
     ))
-    
     conn.commit()
     cur.close()
     conn.close()
@@ -105,4 +111,5 @@ def salvar():
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
