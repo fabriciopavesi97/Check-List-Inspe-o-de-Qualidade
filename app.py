@@ -4,7 +4,6 @@ from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
-# Listas extraídas da planilha
 INSPETORES = ["Inspetor 1", "Inspetor 2", "Inspetor 3", "Inspetor 4"]
 LOCAIS_INSPECAO = ["Externa", "Ibirama", "Brusque"]
 TAMANHOS = [
@@ -33,7 +32,6 @@ def get_db_connection():
     conn = psycopg2.connect(db_url)
     return conn
 
-# Cria a tabela ao iniciar a aplicação para evitar erros
 def init_db():
     try:
         conn = get_db_connection()
@@ -86,24 +84,31 @@ def salvar():
     local_inspecao = request.form.get('local_inspecao')
     qtd_prontas = request.form.get('qtd_prontas') or 0
     qtd_inspecionadas = request.form.get('qtd_inspecionadas') or 0
-    tamanho = request.form.get('tamanho')
-    defeito = request.form.get('defeito')
-    qtd_defeitos = request.form.get('qtd_defeitos') or 0
     observacao = request.form.get('observacao')
+
+    # Recebe as listas de múltiplos defeitos enviados pelo formulário
+    tamanhos = request.form.getlist('tamanho[]')
+    lista_defeitos = request.form.getlist('defeito[]')
+    qtds_defeitos = request.form.getlist('qtd_defeitos[]')
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('''
-        INSERT INTO checklist_qualidade (
-            data_inspecao, inspetor, fornecedor, nr_op, familia, 
-            referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, 
-            tamanho, defeito, qtd_defeitos, observacao
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    ''', (
-        data_inspecao, inspetor, fornecedor, nr_op, familia,
-        referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
-        tamanho, defeito, qtd_defeitos, observacao
-    ))
+
+    # Salva cada linha de defeito informada, repetindo o cabeçalho da OP
+    for tam, def_, qtd_def in zip(tamanhos, lista_defeitos, qtds_defeitos):
+        if def_:  # Só insere se um defeito foi selecionado
+            cur.execute('''
+                INSERT INTO checklist_qualidade (
+                    data_inspecao, inspetor, fornecedor, nr_op, familia, 
+                    referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, 
+                    tamanho, defeito, qtd_defeitos, observacao
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (
+                data_inspecao, inspetor, fornecedor, nr_op, familia,
+                referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
+                tam, def_, qtd_def or 0, observacao
+            ))
+
     conn.commit()
     cur.close()
     conn.close()
