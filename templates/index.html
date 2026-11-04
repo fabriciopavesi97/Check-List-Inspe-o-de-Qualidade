@@ -5,39 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Check List para Inspeção de Qualidade</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
-        .container { max-width: 750px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
-        h2 { color: #2c3e50; margin: 0; }
-        .btn-historico { background-color: #2980b9; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; }
-        .btn-historico:hover { background-color: #1f618d; }
-        .form-group { margin-bottom: 15px; }
-        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 25px; }
+        h2 { color: #1e293b; margin: 0; font-size: 22px; }
+        .btn-historico { background-color: #3b82f6; color: white; padding: 9px 16px; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
+        .btn-historico:hover { background-color: #2563eb; }
+
+        /* Alerta de Sucesso */
+        .alert-sucesso { background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 15px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .section-title { font-size: 15px; font-weight: 700; color: #475569; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .form-group { margin-bottom: 18px; }
+        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 13px; color: #475569; }
         input[type="text"], input[type="number"], input[type="date"], select, textarea {
-            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px;
+            width: 100%; padding: 11px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #f8fafc; transition: border-color 0.2s, background-color 0.2s;
         }
+        input:focus, select:focus, textarea:focus { border-color: #3b82f6; background-color: #fff; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
         .row { display: flex; gap: 15px; }
         .row .form-group { flex: 1; }
-        .defeito-box { background: #f9f9f9; padding: 15px; border: 1px solid #e1e1e1; border-radius: 6px; margin-bottom: 10px; position: relative; }
-        .btn-add { background-color: #3498db; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
-        .btn-add:hover { background-color: #2980b9; }
-        .btn-remove { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; float: right; margin-bottom: 5px; }
-        .btn-remove:hover { background-color: #c0392b; }
-        button[type="submit"] { background-color: #27ae60; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 20px; }
-        button[type="submit"]:hover { background-color: #219150; }
+
+        .defeito-card { background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px; position: relative; }
+        
+        .btn-add { background-color: #e0f2fe; color: #0369a1; border: 1px dashed #38bdf8; padding: 12px; font-size: 14px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 5px; transition: background 0.2s; }
+        .btn-add:hover { background-color: #bae6fd; }
+
+        .btn-remove { background-color: #fee2e2; color: #b91c1c; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; float: right; font-weight: 600; transition: background 0.2s; }
+        .btn-remove:hover { background-color: #fecaca; }
+
+        button[type="submit"] { background-color: #10b981; color: white; border: none; padding: 14px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 700; margin-top: 25px; transition: background 0.2s; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
+        button[type="submit"]:hover { background-color: #059669; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-top">
-        <h2>Check List de Qualidade</h2>
+        <h2>📋 Check List de Inspeção de Qualidade</h2>
         <a href="/historico" class="btn-historico">📊 Ver Histórico</a>
     </div>
 
+    <!-- MENSAGEM DE SUCESSO -->
+    {% if sucesso %}
+        <div class="alert-sucesso">
+            ✅ Check list salvo com sucesso na nuvem! Você pode registrar uma nova inspeção abaixo.
+        </div>
+    {% endif %}
+
     <form action="/salvar" method="POST">
         
-        <!-- CABEÇALHO DA OP -->
+        <div class="section-title">1. Dados Gerais da OP</div>
+        
         <div class="row">
             <div class="form-group">
                 <label for="data_inspecao">Data da Inspeção:</label>
@@ -57,22 +79,22 @@
         <div class="row">
             <div class="form-group">
                 <label for="fornecedor">Fornecedor:</label>
-                <input type="text" id="fornecedor" name="fornecedor" required>
+                <input type="text" id="fornecedor" name="fornecedor" placeholder="Nome do fornecedor" required>
             </div>
             <div class="form-group">
                 <label for="nr_op">N° OP:</label>
-                <input type="text" id="nr_op" name="nr_op" required>
+                <input type="text" id="nr_op" name="nr_op" placeholder="Número da OP" required>
             </div>
         </div>
 
         <div class="row">
             <div class="form-group">
                 <label for="familia">Família:</label>
-                <input type="text" id="familia" name="familia">
+                <input type="text" id="familia" name="familia" placeholder="Família do produto">
             </div>
             <div class="form-group">
                 <label for="referencia_prod">Referência do Produto:</label>
-                <input type="text" id="referencia_prod" name="referencia_prod" required>
+                <input type="text" id="referencia_prod" name="referencia_prod" placeholder="Referência" required>
             </div>
         </div>
 
@@ -89,22 +111,20 @@
         <div class="row">
             <div class="form-group">
                 <label for="qtd_prontas">Qtd Peças Prontas:</label>
-                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" required>
+                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" placeholder="0" required>
             </div>
             <div class="form-group">
                 <label for="qtd_inspecionadas">Qtd Peças Inspecionadas:</label>
-                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" required>
+                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" placeholder="0" required>
             </div>
         </div>
 
-        <hr style="border: 0; border-top: 1px solid #ddd; margin: 25px 0;">
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
 
-        <!-- SEÇÃO DE DEFEITOS MÚLTIPLOS -->
-        <h3 style="color: #2c3e50; font-size: 16px;">Apontamento de Defeitos</h3>
-        <p style="font-size: 13px; color: #666; margin-top: -5px;">Adicione abaixo todos os defeitos encontrados nesta inspeção.</p>
+        <div class="section-title">2. Apontamento de Defeitos</div>
 
         <div id="container-defeitos">
-            <div class="defeito-box">
+            <div class="defeito-card">
                 <div class="row">
                     <div class="form-group">
                         <label>Tamanho:</label>
@@ -134,7 +154,7 @@
 
         <button type="button" class="btn-add" onclick="adicionarDefeito()">+ Adicionar Outro Defeito</button>
 
-        <div class="form-group" style="margin-top: 20px;">
+        <div class="form-group" style="margin-top: 25px;">
             <label for="observacao">Observações Gerais:</label>
             <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção..."></textarea>
         </div>
@@ -144,9 +164,12 @@
 </div>
 
 <script>
+    // Preenche a data de hoje automaticamente no campo de data
+    document.getElementById('data_inspecao').valueAsDate = new Date();
+
     function adicionarDefeito() {
         const container = document.getElementById('container-defeitos');
-        const primeiroBox = container.querySelector('.defeito-box');
+        const primeiroBox = container.querySelector('.defeito-card');
         const novoBox = primeiroBox.cloneNode(true);
         
         novoBox.querySelectorAll('select').forEach(sel => sel.value = '');
@@ -156,7 +179,7 @@
             const btnRemover = document.createElement('button');
             btnRemover.type = 'button';
             btnRemover.className = 'btn-remove';
-            btnRemover.innerText = 'Remover';
+            btnRemover.innerText = '🗑️ Remover';
             btnRemover.onclick = function() { novoBox.remove(); };
             novoBox.insertBefore(btnRemover, novoBox.firstChild);
         }
