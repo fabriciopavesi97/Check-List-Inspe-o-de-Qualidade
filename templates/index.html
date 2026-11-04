@@ -6,7 +6,7 @@
     <title>Check List para Inspeção de Qualidade</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
-        .container { max-width: 650px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .container { max-width: 750px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .form-group { margin-bottom: 15px; }
         label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
@@ -15,8 +15,13 @@
         }
         .row { display: flex; gap: 15px; }
         .row .form-group { flex: 1; }
-        button { background-color: #27ae60; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 15px; }
-        button:hover { background-color: #219150; }
+        .defeito-box { background: #f9f9f9; padding: 15px; border: 1px solid #e1e1e1; border-radius: 6px; margin-bottom: 10px; position: relative; }
+        .btn-add { background-color: #3498db; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        .btn-add:hover { background-color: #2980b9; }
+        .btn-remove { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; float: right; margin-bottom: 5px; }
+        .btn-remove:hover { background-color: #c0392b; }
+        button[type="submit"] { background-color: #27ae60; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 20px; }
+        button[type="submit"]:hover { background-color: #219150; }
     </style>
 </head>
 <body>
@@ -25,6 +30,7 @@
     <h2>Check List de Qualidade</h2>
     <form action="/salvar" method="POST">
         
+        <!-- CABEÇALHO DA OP -->
         <div class="row">
             <div class="form-group">
                 <label for="data_inspecao">Data da Inspeção:</label>
@@ -84,42 +90,75 @@
             </div>
         </div>
 
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        <hr style="border: 0; border-top: 1px solid #ddd; margin: 25px 0;">
 
-        <div class="row">
-            <div class="form-group">
-                <label for="tamanho">Tamanho:</label>
-                <select id="tamanho" name="tamanho" required>
-                    <option value="">Selecione o tamanho</option>
-                    {% for item in tamanhos %}
-                        <option value="{{ item }}">{{ item }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="qtd_defeitos">Qtd Peças c/ Defeito:</label>
-                <input type="number" id="qtd_defeitos" name="qtd_defeitos" min="0" value="0" required>
+        <!-- SEÇÃO DE DEFEITOS MÚLTIPLOS -->
+        <h3 style="color: #2c3e50; font-size: 16px;">Apontamento de Defeitos</h3>
+        <p style="font-size: 13px; color: #666; margin-top: -5px;">Adicione abaixo todos os defeitos encontrados nesta inspeção.</p>
+
+        <div id="container-defeitos">
+            <div class="defeito-box">
+                <div class="row">
+                    <div class="form-group">
+                        <label>Tamanho:</label>
+                        <select name="tamanho[]" required>
+                            <option value="">Selecione</option>
+                            {% for item in tamanhos %}
+                                <option value="{{ item }}">{{ item }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Qtd Peças c/ Defeito:</label>
+                        <input type="number" name="qtd_defeitos[]" min="1" value="1" required>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Defeito Encontrado:</label>
+                    <select name="defeito[]" required>
+                        <option value="">Selecione o defeito</option>
+                        {% for item in defeitos %}
+                            <option value="{{ item }}">{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
 
-        <div class="form-group">
-            <label for="defeito">Defeito Encontrado:</label>
-            <select id="defeito" name="defeito" required>
-                <option value="">Selecione o defeito</option>
-                {% for item in defeitos %}
-                    <option value="{{ item }}">{{ item }}</option>
-                {% endfor %}
-            </select>
-        </div>
+        <button type="button" class="btn-add" onclick="adicionarDefeito()">+ Adicionar Outro Defeito</button>
 
-        <div class="form-group">
-            <label for="observacao">Observações:</label>
+        <div class="form-group" style="margin-top: 20px;">
+            <label for="observacao">Observações Gerais:</label>
             <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção..."></textarea>
         </div>
 
-        <button type="submit">Salvar Registro na Nuvem</button>
+        <button type="submit">Salvar Inspeção Completa na Nuvem</button>
     </form>
 </div>
+
+<script>
+    function adicionarDefeito() {
+        const container = document.getElementById('container-defeitos');
+        const primeiroBox = container.querySelector('.defeito-box');
+        const novoBox = primeiroBox.cloneNode(true);
+        
+        // Limpa os valores do novo bloco clonado
+        novoBox.querySelectorAll('select').forEach(sel => sel.value = '');
+        novoBox.querySelectorAll('input').forEach(inp => inp.value = '1');
+
+        // Adiciona botão de remover na nova caixa
+        if (!novoBox.querySelector('.btn-remove')) {
+            const btnRemover = document.createElement('button');
+            btnRemover.type = 'button';
+            btnRemover.className = 'btn-remove';
+            btnRemover.innerText = 'Remover';
+            btnRemover.onclick = function() { novoBox.remove(); };
+            novoBox.insertBefore(btnRemover, novoBox.firstChild);
+        }
+
+        container.appendChild(novoBox);
+    }
+</script>
 
 </body>
 </html>
