@@ -7,7 +7,10 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
         .container { max-width: 750px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #2c3e50; margin: 0; }
+        .btn-historico { background-color: #2980b9; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; }
+        .btn-historico:hover { background-color: #1f618d; }
         .form-group { margin-bottom: 15px; }
         label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
         input[type="text"], input[type="number"], input[type="date"], select, textarea {
@@ -27,7 +30,11 @@
 <body>
 
 <div class="container">
-    <h2>Check List de Qualidade</h2>
+    <div class="header-top">
+        <h2>Check List de Qualidade</h2>
+        <a href="/historico" class="btn-historico">📊 Ver Histórico</a>
+    </div>
+
     <form action="/salvar" method="POST">
         
         <!-- CABEÇALHO DA OP -->
@@ -142,11 +149,9 @@
         const primeiroBox = container.querySelector('.defeito-box');
         const novoBox = primeiroBox.cloneNode(true);
         
-        // Limpa os valores do novo bloco clonado
         novoBox.querySelectorAll('select').forEach(sel => sel.value = '');
         novoBox.querySelectorAll('input').forEach(inp => inp.value = '1');
 
-        // Adiciona botão de remover na nova caixa
         if (!novoBox.querySelector('.btn-remove')) {
             const btnRemover = document.createElement('button');
             btnRemover.type = 'button';
