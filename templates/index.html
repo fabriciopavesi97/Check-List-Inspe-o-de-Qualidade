@@ -13,9 +13,8 @@
         .btn-historico { background-color: #3b82f6; color: white; padding: 9px 16px; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
         .btn-historico:hover { background-color: #2563eb; }
 
-        /* Alerta de Sucesso */
-        .alert-sucesso { background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 15px; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .alert-sucesso { background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 15px; }
+        .alert-edicao { background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 14px; }
 
         .section-title { font-size: 15px; font-weight: 700; color: #475569; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         
@@ -34,7 +33,7 @@
         .btn-add { background-color: #e0f2fe; color: #0369a1; border: 1px dashed #38bdf8; padding: 12px; font-size: 14px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 5px; transition: background 0.2s; }
         .btn-add:hover { background-color: #bae6fd; }
 
-        .btn-remove { background-color: #fee2e2; color: #b91c1c; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; float: right; font-weight: 600; transition: background 0.2s; }
+        .btn-remove { background-color: #fee2e2; color: #b91c1c; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; float: right; font-weight: 600; }
         .btn-remove:hover { background-color: #fecaca; }
 
         button[type="submit"] { background-color: #10b981; color: white; border: none; padding: 14px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 700; margin-top: 25px; transition: background 0.2s; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
@@ -49,28 +48,38 @@
         <a href="/historico" class="btn-historico">📊 Ver Histórico</a>
     </div>
 
-    <!-- MENSAGEM DE SUCESSO -->
     {% if sucesso %}
         <div class="alert-sucesso">
-            ✅ Check list salvo com sucesso na nuvem! Você pode registrar uma nova inspeção abaixo.
+            ✅ Operação realizada com sucesso na nuvem!
+        </div>
+    {% endif %}
+
+    {% if registro %}
+        <div class="alert-edicao">
+            ⚠️ Você está editando o registro ID #{{ registro[0] }}. Faça as alterações e clique em salvar.
         </div>
     {% endif %}
 
     <form action="/salvar" method="POST">
         
+        <!-- Campo oculto para saber se é uma edição -->
+        {% if registro %}
+            <input type="hidden" name="registro_id" value="{{ registro[0] }}">
+        {% endif %}
+
         <div class="section-title">1. Dados Gerais da OP</div>
         
         <div class="row">
             <div class="form-group">
                 <label for="data_inspecao">Data da Inspeção:</label>
-                <input type="date" id="data_inspecao" name="data_inspecao" required>
+                <input type="date" id="data_inspecao" name="data_inspecao" value="{{ registro[1] if registro else '' }}" required>
             </div>
             <div class="form-group">
                 <label for="inspetor">Inspetor:</label>
                 <select id="inspetor" name="inspetor" required>
                     <option value="">Selecione o inspetor</option>
                     {% for item in inspetores %}
-                        <option value="{{ item }}">{{ item }}</option>
+                        <option value="{{ item }}" {% if registro and registro[2] == item %}selected{% endif %}>{{ item }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -79,22 +88,22 @@
         <div class="row">
             <div class="form-group">
                 <label for="fornecedor">Fornecedor:</label>
-                <input type="text" id="fornecedor" name="fornecedor" placeholder="Nome do fornecedor" required>
+                <input type="text" id="fornecedor" name="fornecedor" value="{{ registro[3] if registro else '' }}" placeholder="Nome do fornecedor" required>
             </div>
             <div class="form-group">
                 <label for="nr_op">N° OP:</label>
-                <input type="text" id="nr_op" name="nr_op" placeholder="Número da OP" required>
+                <input type="text" id="nr_op" name="nr_op" value="{{ registro[4] if registro else '' }}" placeholder="Número da OP" required>
             </div>
         </div>
 
         <div class="row">
             <div class="form-group">
                 <label for="familia">Família:</label>
-                <input type="text" id="familia" name="familia" placeholder="Família do produto">
+                <input type="text" id="familia" name="familia" value="{{ registro[5] if registro else '' }}" placeholder="Família do produto">
             </div>
             <div class="form-group">
                 <label for="referencia_prod">Referência do Produto:</label>
-                <input type="text" id="referencia_prod" name="referencia_prod" placeholder="Referência" required>
+                <input type="text" id="referencia_prod" name="referencia_prod" value="{{ registro[6] if registro else '' }}" placeholder="Referência" required>
             </div>
         </div>
 
@@ -103,7 +112,7 @@
             <select id="local_inspecao" name="local_inspecao" required>
                 <option value="">Selecione o local</option>
                 {% for item in locais %}
-                    <option value="{{ item }}">{{ item }}</option>
+                    <option value="{{ item }}" {% if registro and registro[7] == item %}selected{% endif %}>{{ item }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -111,11 +120,11 @@
         <div class="row">
             <div class="form-group">
                 <label for="qtd_prontas">Qtd Peças Prontas:</label>
-                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" placeholder="0" required>
+                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" value="{{ registro[8] if registro else '' }}" placeholder="0" required>
             </div>
             <div class="form-group">
                 <label for="qtd_inspecionadas">Qtd Peças Inspecionadas:</label>
-                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" placeholder="0" required>
+                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" value="{{ registro[9] if registro else '' }}" placeholder="0" required>
             </div>
         </div>
 
@@ -131,13 +140,13 @@
                         <select name="tamanho[]" required>
                             <option value="">Selecione</option>
                             {% for item in tamanhos %}
-                                <option value="{{ item }}">{{ item }}</option>
+                                <option value="{{ item }}" {% if registro and registro[10] == item %}selected{% endif %}>{{ item }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Qtd Peças c/ Defeito:</label>
-                        <input type="number" name="qtd_defeitos[]" min="1" value="1" required>
+                        <input type="number" name="qtd_defeitos[]" min="1" value="{{ registro[12] if registro else '1' }}" required>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
@@ -145,21 +154,27 @@
                     <select name="defeito[]" required>
                         <option value="">Selecione o defeito</option>
                         {% for item in defeitos %}
-                            <option value="{{ item }}">{{ item }}</option>
+                            <option value="{{ item }}" {% if registro and registro[11] == item %}selected{% endif %}>{{ item }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
         </div>
 
-        <button type="button" class="btn-add" onclick="adicionarDefeito()">+ Adicionar Outro Defeito</button>
+        {% if not registro %}
+            <button type="button" class="btn-add" onclick="adicionarDefeito()">+ Adicionar Outro Defeito</button>
+        {% endif %}
 
         <div class="form-group" style="margin-top: 25px;">
             <label for="observacao">Observações Gerais:</label>
-            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção..."></textarea>
+            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[13] if registro else '' }}</textarea>
         </div>
 
-        <button type="submit">Salvar Inspeção Completa na Nuvem</button>
+        <button type="submit">{% if registro %}Atualizar Registro na Nuvem{% else %}Salvar Inspeção Completa na Nuvem{% endif %}</button>
+        
+        {% if registro %}
+            <a href="/" style="display: block; text-align: center; margin-top: 10px; color: #64748b; text-decoration: none; font-weight: 600; font-size: 13px;">Cancelar Edição</a>
+        {% endif %}
     </form>
 </div>
 
