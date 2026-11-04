@@ -108,9 +108,7 @@ def salvar():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Se estiver editando um registro existente
     if registro_id:
-        # Atualiza o primeiro item com o ID existente
         if len(tamanhos) > 0 and lista_defeitos[0]:
             cur.execute('''
                 UPDATE checklist_qualidade SET
@@ -125,7 +123,6 @@ def salvar():
                 tamanhos[0], lista_defeitos[0], qtds_defeitos[0] or 0, observacao, registro_id
             ))
     else:
-        # Criação normal (inserindo novos)
         for tam, def_, qtd_def in zip(tamanhos, lista_defeitos, qtds_defeitos):
             if def_:
                 cur.execute('''
@@ -146,12 +143,22 @@ def salvar():
 
     return redirect(url_for('index', sucesso=1))
 
+@app.route('/excluir/<int:id>', methods=['GET'])
+def excluir(id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM checklist_qualidade WHERE id = %s;", (id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for('historico'))
+
 @app.route('/historico', methods=['GET'])
 def historico():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Sem limite (ilimitado) ordenado do mais recente para o mais antigo
-    cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, referencia_prod, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC;")
+    # Trazendo também a família (índice 5 no banco)
+    cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC;")
     registros = cur.fetchall()
     cur.close()
     conn.close()
@@ -164,7 +171,7 @@ def historico():
         <title>Histórico de Inspeções</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }
-            .container { max-width: 1100px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+            .container { max-width: 1200px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
             h2 { color: #1e293b; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
@@ -172,8 +179,10 @@ def historico():
             tr:nth-child(even) { background-color: #f8fafc; }
             .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
             .btn-voltar:hover { background: #2563eb; }
-            .btn-editar { padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
+            .btn-editar { padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }
             .btn-editar:hover { background: #d97706; }
+            .btn-excluir { padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
+            .btn-excluir:hover { background: #dc2626; }
         </style>
     </head>
     <body>
@@ -187,6 +196,7 @@ def historico():
                     <th>Inspetor</th>
                     <th>Fornecedor</th>
                     <th>N° OP</th>
+                    <th>Família</th>
                     <th>Referência</th>
                     <th>Tamanho</th>
                     <th>Defeito</th>
@@ -195,7 +205,7 @@ def historico():
                 </tr>
     '''
     for reg in registros:
-        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a></td></tr>"
+        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{reg[9]}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> <a href='/excluir/{reg[0]}' class='btn-excluir' onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
     
     html += '''
             </table>
