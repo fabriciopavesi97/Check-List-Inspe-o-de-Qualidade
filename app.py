@@ -1,192 +1,176 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Check List para Inspeção de Qualidade</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        
-        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 25px; }
-        h2 { color: #1e293b; margin: 0; font-size: 22px; }
-        .btn-historico { background-color: #3b82f6; color: white; padding: 9px 16px; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
-        .btn-historico:hover { background-color: #2563eb; }
+import os
+import psycopg2
+from flask import Flask, render_template, request, redirect, url_for
 
-        /* Alerta de Sucesso */
-        .alert-sucesso { background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 15px; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+app = Flask(__name__)
 
-        .section-title { font-size: 15px; font-weight: 700; color: #475569; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .form-group { margin-bottom: 18px; }
-        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 13px; color: #475569; }
-        input[type="text"], input[type="number"], input[type="date"], select, textarea {
-            width: 100%; padding: 11px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #f8fafc; transition: border-color 0.2s, background-color 0.2s;
-        }
-        input:focus, select:focus, textarea:focus { border-color: #3b82f6; background-color: #fff; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+INSPETORES = ["Inspetor 1", "Inspetor 2", "Inspetor 3", "Inspetor 4"]
+LOCAIS_INSPECAO = ["Externa", "Ibirama", "Brusque"]
+TAMANHOS = [
+    "PP", "P", "M", "G", "EG", "EGG", "PE", "ME", "GR", "XG",
+    "1", "2", "3", "4", "6", "8", "10", "12", "14", "16", "18", "U"
+]
+DEFEITOS = [
+    "Alça Torcida", "Diferença de cavas", "Arremate com bolinha", "Arremate desencontrado",
+    "Bainha cortada", "Bainha desencontrada", "Bainha torcida/enviasada", "Rebarba de bainha",
+    "Bainha com bananinha", "Biquinho decote fora do centro", "Biquinho decote com acabamento mal feito",
+    "Costura enrrugada", "Costura escapada", "Costura estourada", "Costura torta", "Emenda na costura",
+    "Furo de agulha (na peça e etiqueta)", "Linha do Franzido aparecendo", "Marca de costura desmanchada",
+    "Peitilho torto", "Ponto falhado", "Prega na costura", "Regulagem de ponto", "Viés caído",
+    "Casamento de recortes", "Falta travete", "Viés escapado", "Bolsos Tortos", "Lacinho mal pregado",
+    "Peça sem lacinho", "Peça cortada", "Sobra de fios Costura", "Cós escapado", "Falso amarrador mal costurado",
+    "Falso amarrador no lugar errado", "Composição errada", "Etiqueta errada", "Etiqueta de tamanho trocada",
+    "Etiqueta lado errado", "Etiqueta torta", "Peça sem etiqueta", "Transfer com tamanho errado",
+    "Transfer falhado", "Transfer fora do centro", "Transfer descolando", "Sujeiras", "Peça molhada",
+    "Manchas", "Óleo de costura", "Barramento", "Óleo de Tinturaria", "Contaminação / fibras estranhas",
+    "Tonalidade", "Torção", "Vinco", "Desencaixe de estampa", "Estampa falhada", "Emenda Materia prima",
+    "Marcação do final do rolo", "Furo de malha", "Decote franzido", "Decote esgaçado", "Medidas (fora tolerância)"
+]
 
-        .row { display: flex; gap: 15px; }
-        .row .form-group { flex: 1; }
+def get_db_connection():
+    db_url = os.environ.get('DATABASE_URL')
+    conn = psycopg2.connect(db_url)
+    return conn
 
-        .defeito-card { background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px; position: relative; }
-        
-        .btn-add { background-color: #e0f2fe; color: #0369a1; border: 1px dashed #38bdf8; padding: 12px; font-size: 14px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 5px; transition: background 0.2s; }
-        .btn-add:hover { background-color: #bae6fd; }
+def init_db():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS checklist_qualidade (
+                id SERIAL PRIMARY KEY,
+                data_inspecao DATE,
+                inspetor VARCHAR(100),
+                fornecedor VARCHAR(150),
+                nr_op VARCHAR(50),
+                familia VARCHAR(100),
+                referencia_prod VARCHAR(100),
+                local_inspecao VARCHAR(50),
+                qtd_prontas INT,
+                qtd_inspecionadas INT,
+                tamanho VARCHAR(20),
+                defeito VARCHAR(150),
+                qtd_defeitos INT,
+                observacao TEXT,
+                data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erro ao criar tabela: {e}")
 
-        .btn-remove { background-color: #fee2e2; color: #b91c1c; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; float: right; font-weight: 600; transition: background 0.2s; }
-        .btn-remove:hover { background-color: #fecaca; }
+init_db()
 
-        button[type="submit"] { background-color: #10b981; color: white; border: none; padding: 14px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 700; margin-top: 25px; transition: background 0.2s; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
-        button[type="submit"]:hover { background-color: #059669; }
-    </style>
-</head>
-<body>
+@app.route('/', methods=['GET'])
+def index():
+    sucesso = request.args.get('sucesso')
+    return render_template(
+        'index.html', 
+        inspetores=INSPETORES, 
+        locais=LOCAIS_INSPECAO, 
+        tamanhos=TAMANHOS, 
+        defeitos=DEFEITOS,
+        sucesso=sucesso
+    )
 
-<div class="container">
-    <div class="header-top">
-        <h2>📋 Check List de Inspeção de Qualidade</h2>
-        <a href="/historico" class="btn-historico">📊 Ver Histórico</a>
-    </div>
+@app.route('/salvar', methods=['POST'])
+def salvar():
+    data_inspecao = request.form.get('data_inspecao')
+    inspetor = request.form.get('inspetor')
+    fornecedor = request.form.get('fornecedor')
+    nr_op = request.form.get('nr_op')
+    familia = request.form.get('familia')
+    referencia_prod = request.form.get('referencia_prod')
+    local_inspecao = request.form.get('local_inspecao')
+    qtd_prontas = request.form.get('qtd_prontas') or 0
+    qtd_inspecionadas = request.form.get('qtd_inspecionadas') or 0
+    observacao = request.form.get('observacao')
 
-    <!-- MENSAGEM DE SUCESSO -->
-    {% if sucesso %}
-        <div class="alert-sucesso">
-            ✅ Check list salvo com sucesso na nuvem! Você pode registrar uma nova inspeção abaixo.
+    tamanhos = request.form.getlist('tamanho[]')
+    lista_defeitos = request.form.getlist('defeito[]')
+    qtds_defeitos = request.form.getlist('qtd_defeitos[]')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    for tam, def_, qtd_def in zip(tamanhos, lista_defeitos, qtds_defeitos):
+        if def_:
+            cur.execute('''
+                INSERT INTO checklist_qualidade (
+                    data_inspecao, inspetor, fornecedor, nr_op, familia, 
+                    referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, 
+                    tamanho, defeito, qtd_defeitos, observacao
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (
+                data_inspecao, inspetor, fornecedor, nr_op, familia,
+                referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
+                tam, def_, qtd_def or 0, observacao
+            ))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    # Redireciona de volta para a página inicial com o aviso de sucesso
+    return redirect(url_for('index', sucesso=1))
+
+@app.route('/historico', methods=['GET'])
+def historico():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT data_inspecao, inspetor, fornecedor, nr_op, referencia_prod, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC LIMIT 50;")
+    registros = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    html = '''
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Histórico de Inspeções</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }
+            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+            h2 { color: #1e293b; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
+            th { background-color: #3b82f6; color: white; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
+            .btn-voltar:hover { background: #2563eb; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>📊 Histórico de Inspeções Recentes</h2>
+            <p style="color: #64748b; font-size: 14px;">Últimos 50 registros salvos na nuvem.</p>
+            <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
+            <table>
+                <tr>
+                    <th>Data</th>
+                    <th>Inspetor</th>
+                    <th>Fornecedor</th>
+                    <th>N° OP</th>
+                    <th>Referência</th>
+                    <th>Tamanho</th>
+                    <th>Defeito</th>
+                    <th>Qtd</th>
+                </tr>
+    '''
+    for reg in registros:
+        html += f"<tr><td>{reg[0]}</td><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td></tr>"
+    
+    html += '''
+            </table>
         </div>
-    {% endif %}
+    </body>
+    </html>
+    '''
+    return html
 
-    <form action="/salvar" method="POST">
-        
-        <div class="section-title">1. Dados Gerais da OP</div>
-        
-        <div class="row">
-            <div class="form-group">
-                <label for="data_inspecao">Data da Inspeção:</label>
-                <input type="date" id="data_inspecao" name="data_inspecao" required>
-            </div>
-            <div class="form-group">
-                <label for="inspetor">Inspetor:</label>
-                <select id="inspetor" name="inspetor" required>
-                    <option value="">Selecione o inspetor</option>
-                    {% for item in inspetores %}
-                        <option value="{{ item }}">{{ item }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="form-group">
-                <label for="fornecedor">Fornecedor:</label>
-                <input type="text" id="fornecedor" name="fornecedor" placeholder="Nome do fornecedor" required>
-            </div>
-            <div class="form-group">
-                <label for="nr_op">N° OP:</label>
-                <input type="text" id="nr_op" name="nr_op" placeholder="Número da OP" required>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="form-group">
-                <label for="familia">Família:</label>
-                <input type="text" id="familia" name="familia" placeholder="Família do produto">
-            </div>
-            <div class="form-group">
-                <label for="referencia_prod">Referência do Produto:</label>
-                <input type="text" id="referencia_prod" name="referencia_prod" placeholder="Referência" required>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="local_inspecao">Local da Inspeção:</label>
-            <select id="local_inspecao" name="local_inspecao" required>
-                <option value="">Selecione o local</option>
-                {% for item in locais %}
-                    <option value="{{ item }}">{{ item }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="row">
-            <div class="form-group">
-                <label for="qtd_prontas">Qtd Peças Prontas:</label>
-                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" placeholder="0" required>
-            </div>
-            <div class="form-group">
-                <label for="qtd_inspecionadas">Qtd Peças Inspecionadas:</label>
-                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" placeholder="0" required>
-            </div>
-        </div>
-
-        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
-
-        <div class="section-title">2. Apontamento de Defeitos</div>
-
-        <div id="container-defeitos">
-            <div class="defeito-card">
-                <div class="row">
-                    <div class="form-group">
-                        <label>Tamanho:</label>
-                        <select name="tamanho[]" required>
-                            <option value="">Selecione</option>
-                            {% for item in tamanhos %}
-                                <option value="{{ item }}">{{ item }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Qtd Peças c/ Defeito:</label>
-                        <input type="number" name="qtd_defeitos[]" min="1" value="1" required>
-                    </div>
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>Defeito Encontrado:</label>
-                    <select name="defeito[]" required>
-                        <option value="">Selecione o defeito</option>
-                        {% for item in defeitos %}
-                            <option value="{{ item }}">{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <button type="button" class="btn-add" onclick="adicionarDefeito()">+ Adicionar Outro Defeito</button>
-
-        <div class="form-group" style="margin-top: 25px;">
-            <label for="observacao">Observações Gerais:</label>
-            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção..."></textarea>
-        </div>
-
-        <button type="submit">Salvar Inspeção Completa na Nuvem</button>
-    </form>
-</div>
-
-<script>
-    // Preenche a data de hoje automaticamente no campo de data
-    document.getElementById('data_inspecao').valueAsDate = new Date();
-
-    function adicionarDefeito() {
-        const container = document.getElementById('container-defeitos');
-        const primeiroBox = container.querySelector('.defeito-card');
-        const novoBox = primeiroBox.cloneNode(true);
-        
-        novoBox.querySelectorAll('select').forEach(sel => sel.value = '');
-        novoBox.querySelectorAll('input').forEach(inp => inp.value = '1');
-
-        if (!novoBox.querySelector('.btn-remove')) {
-            const btnRemover = document.createElement('button');
-            btnRemover.type = 'button';
-            btnRemover.className = 'btn-remove';
-            btnRemover.innerText = '🗑️ Remover';
-            btnRemover.onclick = function() { novoBox.remove(); };
-            novoBox.insertBefore(btnRemover, novoBox.firstChild);
-        }
-
-        container.appendChild(novoBox);
-    }
-</script>
-
-</body>
-</html>
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
