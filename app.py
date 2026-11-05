@@ -54,7 +54,7 @@ def init_db():
                 observacao TEXT,
                 data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-        ''');
+        ''')
         conn.commit()
         cur.close()
         conn.close()
@@ -157,7 +157,6 @@ def excluir(id):
 def historico():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Trazendo todos os registros ordenados por data decrescente
     cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC;")
     registros = cur.fetchall()
     cur.close()
@@ -177,58 +176,4 @@ def historico():
             th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
             th { background-color: #3b82f6; color: white; }
             tr:nth-child(even) { background-color: #f8fafc; }
-            .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
-            .btn-voltar:hover { background: #2563eb; }
-            .badge-defeito { background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; margin: 2px; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>📊 Histórico Consolidado por Inspeção / OP</h2>
-            <p style="color: #64748b; font-size: 14px;">Cada linha representa uma inspeção unificada, eliminando duplicidade de contagem de peças.</p>
-            <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
-            <table>
-                <tr>
-                    <th>Data</th>
-                    <th>Inspetor</th>
-                    <th>Fornecedor</th>
-                    <th>N° OP</th>
-                    <th>Família</th>
-                    <th>Referência</th>
-                    <th>Qtd Prontas</th>
-                    <th>Qtd Inspecionadas</th>
-                    <th>Defeitos Encontrados (Tamanho & Qtd)</th>
-                </tr>
-    '''
-    
-    # Agrupando os registros por OP/Data/Inspetor para evitar linhas duplicadas de peças
-    agrupados = {}
-    for reg in registros:
-        # Chave única para identificar a mesma inspeção/OP
-        chave = (reg[1], reg[2], reg[3], reg[4], reg[5], reg[6], reg[7], reg[8])
-        if chave not in agrupados:
-            agrupados[chave] = []
-        agrupados[chave].append((reg[0], reg[9], reg[10], reg[11])) # id, tamanho, defeito, qtd_defeitos
-
-    for chave, lista_defs in agrupados.items():
-        data, inspetor, fornecedor, op, familia, ref, prontas, inspecionadas = chave
-        
-        # Monta a caixinha visual com os defeitos daquela OP
-        def_html = ""
-        for d in lista_defs:
-            id_reg, tam, def_nome, q_def = d
-            def_html += f"<span class='badge-defeito'>[{tam}] {def_nome} ({q_def} pçs) <a href='/?edit_id={id_reg}' style='color:#3b82f6;text-decoration:none;'>✏️</a> <a href='/excluir/{id_reg}' style='color:#ef4444;text-decoration:none;' onclick='return confirm(\"Excluir este defeito?\");'>🗑️</a></span> "
-
-        html += f"<tr><td>{data}</td><td>{inspetor}</td><td>{fornecedor}</td><td><b>{op}</b></td><td>{familia}</td><td>{ref}</td><td><b>{prontas}</b></td><td><b>{inspecionadas}</b></td><td>{def_html}</td></tr>"
-
-    html += '''
-            </table>
-        </div>
-    </body>
-    </html>
-    '''
-    return html
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+            .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s;
