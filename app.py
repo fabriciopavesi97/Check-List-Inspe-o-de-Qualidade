@@ -176,4 +176,46 @@ def historico():
             th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
             th { background-color: #3b82f6; color: white; }
             tr:nth-child(even) { background-color: #f8fafc; }
-            .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s;
+            .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
+            .btn-voltar:hover { background: #2563eb; }
+            .btn-editar { padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }
+            .btn-editar:hover { background: #d97706; }
+            .btn-excluir { padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
+            .btn-excluir:hover { background: #dc2626; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>📊 Histórico de Inspeções (Completo e Ilimitado)</h2>
+            <p style="color: #64748b; font-size: 14px;">Todos os registros salvos na nuvem.</p>
+            <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
+            <table>
+                <tr>
+                    <th>Data</th>
+                    <th>Inspetor</th>
+                    <th>Fornecedor</th>
+                    <th>N° OP</th>
+                    <th>Família</th>
+                    <th>Referência</th>
+                    <th>Qtd Prontas</th>
+                    <th>Qtd Inspecionadas</th>
+                    <th>Tamanho</th>
+                    <th>Defeito</th>
+                    <th>Qtd Defeito</th>
+                    <th>Ações</th>
+                </tr>
+    '''
+    for reg in registros:
+        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{reg[9]}</td><td>{reg[10]}</td><td>{reg[11]}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> <a href='/excluir/{reg[0]}' class='btn-excluir' onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
+    
+    html += '''
+            </table>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
