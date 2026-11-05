@@ -54,7 +54,7 @@ def init_db():
                 observacao TEXT,
                 data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-        ''')
+        ''');
         conn.commit()
         cur.close()
         conn.close()
@@ -157,7 +157,7 @@ def excluir(id):
 def historico():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Buscando todas as colunas necessárias: id, data, inspetor, fornecedor, op, familia, ref, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos
+    # Trazendo todos os registros ordenados por data decrescente
     cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC;")
     registros = cur.fetchall()
     cur.close()
@@ -179,16 +179,13 @@ def historico():
             tr:nth-child(even) { background-color: #f8fafc; }
             .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
             .btn-voltar:hover { background: #2563eb; }
-            .btn-editar { padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }
-            .btn-editar:hover { background: #d97706; }
-            .btn-excluir { padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
-            .btn-excluir:hover { background: #dc2626; }
+            .badge-defeito { background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; margin: 2px; }
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>📊 Histórico de Inspeções (Completo e Ilimitado)</h2>
-            <p style="color: #64748b; font-size: 14px;">Todos os registros salvos na nuvem.</p>
+            <h2>📊 Histórico Consolidado por Inspeção / OP</h2>
+            <p style="color: #64748b; font-size: 14px;">Cada linha representa uma inspeção unificada, eliminando duplicidade de contagem de peças.</p>
             <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
             <table>
                 <tr>
@@ -200,16 +197,30 @@ def historico():
                     <th>Referência</th>
                     <th>Qtd Prontas</th>
                     <th>Qtd Inspecionadas</th>
-                    <th>Tamanho</th>
-                    <th>Defeito</th>
-                    <th>Qtd Defeito</th>
-                    <th>Ações</th>
+                    <th>Defeitos Encontrados (Tamanho & Qtd)</th>
                 </tr>
     '''
-    for reg in registros:
-        # reg[1]=data, reg[2]=inspetor, reg[3]=fornecedor, reg[4]=op, reg[5]=familia, reg[6]=ref, reg[7]=qtd_prontas, reg[8]=qtd_inspecionadas, reg[9]=tamanho, reg[10]=defeito, reg[11]=qtd_defeitos
-        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{reg[9]}</td><td>{reg[10]}</td><td>{reg[11]}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> <a href='/excluir/{reg[0]}' class='btn-excluir' onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
     
+    # Agrupando os registros por OP/Data/Inspetor para evitar linhas duplicadas de peças
+    agrupados = {}
+    for reg in registros:
+        # Chave única para identificar a mesma inspeção/OP
+        chave = (reg[1], reg[2], reg[3], reg[4], reg[5], reg[6], reg[7], reg[8])
+        if chave not in agrupados:
+            agrupados[chave] = []
+        agrupados[chave].append((reg[0], reg[9], reg[10], reg[11])) # id, tamanho, defeito, qtd_defeitos
+
+    for chave, lista_defs in agrupados.items():
+        data, inspetor, fornecedor, op, familia, ref, prontas, inspecionadas = chave
+        
+        # Monta a caixinha visual com os defeitos daquela OP
+        def_html = ""
+        for d in lista_defs:
+            id_reg, tam, def_nome, q_def = d
+            def_html += f"<span class='badge-defeito'>[{tam}] {def_nome} ({q_def} pçs) <a href='/?edit_id={id_reg}' style='color:#3b82f6;text-decoration:none;'>✏️</a> <a href='/excluir/{id_reg}' style='color:#ef4444;text-decoration:none;' onclick='return confirm(\"Excluir este defeito?\");'>🗑️</a></span> "
+
+        html += f"<tr><td>{data}</td><td>{inspetor}</td><td>{fornecedor}</td><td><b>{op}</b></td><td>{familia}</td><td>{ref}</td><td><b>{prontas}</b></td><td><b>{inspecionadas}</b></td><td>{def_html}</td></tr>"
+
     html += '''
             </table>
         </div>
