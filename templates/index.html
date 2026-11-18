@@ -15,6 +15,7 @@
 
         .alert-sucesso { background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 15px; }
         .alert-edicao { background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 14px; }
+        .tempo-gasto-box { background: #e0f2fe; color: #0369a1; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-top: 5px; display: inline-block; }
 
         .section-title { font-size: 15px; font-weight: 700; color: #475569; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         
@@ -45,7 +46,7 @@
 <div class="container">
     <div class="header-top">
         <h2>📋 Check List de Inspeção de Qualidade</h2>
-        <a href="/historico" class="btn-historico">📊 Ver Histórico</a>
+        <a href="/historico" class="btn-historico">📊 Ver Histórico & Painel</a>
     </div>
 
     {% if sucesso %}
@@ -176,17 +177,18 @@
         <div class="row">
             <div class="form-group">
                 <label for="hora_inicio">Hora Início:</label>
-                <input type="time" id="hora_inicio" name="hora_inicio" value="{{ registro[12] if registro else '' }}" required>
+                <input type="time" id="hora_inicio" name="hora_inicio" value="{{ registro[12] if registro else '' }}" required onchange="calcularTempo()">
             </div>
             <div class="form-group">
                 <label for="hora_fim">Hora Fim:</label>
-                <input type="time" id="hora_fim" name="hora_fim" value="{{ registro[13] if registro else '' }}" required>
+                <input type="time" id="hora_fim" name="hora_fim" value="{{ registro[13] if registro else '' }}" required onchange="calcularTempo()">
             </div>
         </div>
+        <div id="display-tempo" class="tempo-gasto-box" style="display: none;"></div>
 
-        <div class="form-group">
+        <div class="form-group" style="margin-top: 15px;">
             <label for="status_lote">Status do Lote / OP:</label>
-            <select id="status_lote" name="status_lote" required>
+            <select id="status_lote" name="status_lote" required onchange="verificarStatus()">
                 <option value="">Selecione o status do lote</option>
                 <option value="Aprovado" {% if registro and registro[14] == "Aprovado" %}selected{% endif %}>🟢 Aprovado</option>
                 <option value="Reprovado" {% if registro and registro[15] == "Reprovado" %}selected{% endif %}>🔴 Reprovado</option>
@@ -194,7 +196,7 @@
         </div>
 
         <div class="form-group" style="margin-top: 15px;">
-            <label for="observacao">Observações Gerais:</label>
+            <label for="observacao" id="label-obs">Observações Gerais:</label>
             <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[16] if registro else '' }}</textarea>
         </div>
 
@@ -225,6 +227,49 @@
         }
 
         container.appendChild(novoBox);
+    }
+
+    // Script para cálculo automático do tempo de inspeção
+    function calcularTempo() {
+        const hInicio = document.getElementById('hora_inicio').value;
+        const hFim = document.getElementById('hora_fim').value;
+        const display = document.getElementById('display-tempo');
+
+        if (hInicio && hFim) {
+            const [iniHora, iniMin] = hInicio.split(':').map(Number);
+            const [fimHora, fimMin] = hFim.split(':').map(Number);
+
+            let minutosInicio = iniHora * 60 + iniMin;
+            let minutosFim = fimHora * 60 + fimMin;
+
+            let diff = minutosFim - minutosInicio;
+            if (diff < 0) diff += 24 * 60; // Caso passe da meia-noite
+
+            const horas = Math.floor(diff / 60);
+            const minutos = diff % 60;
+
+            display.style.display = 'block';
+            display.innerText = `⏱️ Tempo total da inspeção: ${horas > 0 ? horas + 'h ' : ''}${minutos} minutos`;
+        } else {
+            display.style.display = 'none';
+        }
+    }
+
+    // Exige observação detalhada caso o lote seja reprovado
+    function verificarStatus() {
+        const status = document.getElementById('status_lote').value;
+        const labelObs = document.getElementById('label-obs');
+        const txtObs = document.getElementById('observacao');
+
+        if (status === 'Reprovado') {
+            labelObs.innerHTML = 'Observações Gerais (<span style="color: #dc2626;">Obrigatório descrever o motivo da reprovação</span>):';
+            txtObs.required = true;
+            txtObs.style.borderColor = '#dc2626';
+        } else {
+            labelObs.innerHTML = 'Observações Gerais:';
+            txtObs.required = false;
+            txtObs.style.borderColor = '#cbd5e1';
+        }
     }
 </script>
 
