@@ -15,6 +15,7 @@
 
         .alert-sucesso { background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 15px; }
         .alert-edicao { background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 14px; }
+        .alert-erro { background-color: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 14px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 14px; }
         .tempo-gasto-box { background: #e0f2fe; color: #0369a1; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-top: 5px; display: inline-block; }
 
         .section-title { font-size: 15px; font-weight: 700; color: #475569; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -55,13 +56,21 @@
         </div>
     {% endif %}
 
+    {% if erro %}
+        <div class="alert-erro" id="alerta-erro-servidor">
+            ⛔ {{ erro }}
+        </div>
+    {% endif %}
+
+    <div class="alert-erro" id="alerta-erro-cliente" style="display: none;"></div>
+
     {% if registro %}
         <div class="alert-edicao">
             ⚠️ Você está editando o registro ID #{{ registro[0] }}. Faça as alterações e clique em salvar.
         </div>
     {% endif %}
 
-    <form action="/salvar" method="POST">
+    <form action="/salvar" method="POST" onsubmit="return validarFormulario()">
         
         {% if registro %}
             <input type="hidden" name="registro_id" value="{{ registro[0] }}">
@@ -142,7 +151,7 @@
                 <div class="row">
                     <div class="form-group">
                         <label>Tamanho:</label>
-                        <select name="tamanho[]" required>
+                        <select name="tamanho[]" class="campo-tamanho" required>
                             <option value="">Selecione</option>
                             {% for item in tamanhos %}
                                 <option value="{{ item }}" {% if registro and registro[10] == item %}selected{% endif %}>{{ item }}</option>
@@ -151,7 +160,7 @@
                     </div>
                     <div class="form-group">
                         <label>Qtd Peças c/ Defeito:</label>
-                        <input type="number" name="qtd_defeitos[]" min="0" value="{{ registro[12] if registro else '0' }}" required>
+                        <input type="number" name="qtd_defeitos[]" class="campo-qtd-defeito" min="0" value="{{ registro[12] if registro else '0' }}" required>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
@@ -211,11 +220,21 @@
 <script>
     function adicionarDefeito() {
         const container = document.getElementById('container-defeitos');
-        const primeiroBox = container.querySelector('.defeito-card');
-        const novoBox = primeiroBox.cloneNode(true);
-        
-        novoBox.querySelectorAll('select').forEach(sel => sel.value = '');
-        novoBox.querySelectorAll('input').forEach(inp => inp.value = '0');
+        const boxes = container.querySelectorAll('.defeito-card');
+        const ultimoBox = boxes[boxes.length - 1];
+
+        // Guarda o tamanho selecionado no último bloco antes de clonar
+        const ultimoTamanho = ultimoBox.querySelector('.campo-tamanho').value;
+
+        const novoBox = ultimoBox.cloneNode(true);
+
+        // Mantém o tamanho selecionado anteriormente (mas continua livre para alterar)
+        novoBox.querySelector('.campo-tamanho').value = ultimoTamanho;
+
+        // Reseta apenas o defeito e a quantidade de defeito do novo bloco
+        const selDefeito = novoBox.querySelector('select[name="defeito[]"]');
+        if (selDefeito) selDefeito.value = '';
+        novoBox.querySelector('.campo-qtd-defeito').value = '0';
 
         if (!novoBox.querySelector('.btn-remove')) {
             const btnRemover = document.createElement('button');
@@ -229,7 +248,34 @@
         container.appendChild(novoBox);
     }
 
-    // Script para cálculo automático do tempo de inspeção
+    function validarFormulario() {
+        const alerta = document.getElementById('alerta-erro-cliente');
+        const qtdProntas = parseInt(document.getElementById('qtd_prontas').value || '0', 10);
+        const qtdInspecionadas = parseInt(document.getElementById('qtd_inspecionadas').value || '0', 10);
+
+        if (qtdInspecionadas > qtdProntas) {
+            alerta.style.display = 'block';
+            alerta.innerText = `⛔ A quantidade inspecionada (${qtdInspecionadas}) não pode ser maior que a quantidade de peças prontas (${qtdProntas}).`;
+            alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+
+        let somaDefeitos = 0;
+        document.querySelectorAll('.campo-qtd-defeito').forEach(inp => {
+            somaDefeitos += parseInt(inp.value || '0', 10);
+        });
+
+        if (somaDefeitos > qtdInspecionadas) {
+            alerta.style.display = 'block';
+            alerta.innerText = `⛔ A soma das peças com defeito (${somaDefeitos}) não pode ser maior que a quantidade de peças inspecionadas (${qtdInspecionadas}).`;
+            alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+
+        alerta.style.display = 'none';
+        return true;
+    }
+
     function calcularTempo() {
         const hInicio = document.getElementById('hora_inicio').value;
         const hFim = document.getElementById('hora_fim').value;
@@ -243,7 +289,7 @@
             let minutosFim = fimHora * 60 + fimMin;
 
             let diff = minutosFim - minutosInicio;
-            if (diff < 0) diff += 24 * 60; // Caso passe da meia-noite
+            if (diff < 0) diff += 24 * 60;
 
             const horas = Math.floor(diff / 60);
             const minutos = diff % 60;
@@ -255,7 +301,6 @@
         }
     }
 
-    // Exige observação detalhada caso o lote seja reprovado
     function verificarStatus() {
         const status = document.getElementById('status_lote').value;
         const labelObs = document.getElementById('label-obs');
