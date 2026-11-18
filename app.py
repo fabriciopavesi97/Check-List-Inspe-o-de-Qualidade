@@ -1,7 +1,7 @@
 import csv
 import io
 import os
-from datetime import datetime
+from datetime import datetime, time
 import psycopg2
 from flask import Flask, Response, redirect, render_template, request, url_for
 
@@ -140,14 +140,88 @@ def init_db():
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_inicio TIME;")
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_fim TIME;")
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS status_lote VARCHAR(20);")
+
+        # View pronta para facilitar a leitura no Power BI com colunas calculadas
+        cur.execute('''
+            CREATE OR REPLACE VIEW vw_checklist_qualidade_bi AS
+            SELECT
+                id,
+                data_inspecao,
+                TO_CHAR(data_inspecao, 'YYYY-MM') AS mes_ano,
+                CONCAT(COALESCE(nr_op, ''), '_', COALESCE(TO_CHAR(data_inspecao, 'YYYY-MM-DD'), '')) AS chave_lote,
+                inspetor,
+                fornecedor,
+                nr_op,
+                familia,
+                referencia_prod,
+                local_inspecao,
+                qtd_prontas,
+                qtd_inspecionadas,
+                tamanho,
+                defeito,
+                qtd_defeitos,
+                hora_inicio,
+                hora_fim,
+                CASE
+                    WHEN hora_inicio IS NOT NULL AND hora_fim IS NOT NULL THEN
+                        CASE
+                            WHEN (EXTRACT(HOUR FROM hora_fim) * 60 + EXTRACT(MINUTE FROM hora_fim)) >=
+                                 (EXTRACT(HOUR FROM hora_inicio) * 60 + EXTRACT(MINUTE FROM hora_inicio))
+                            THEN ((EXTRACT(HOUR FROM hora_fim) * 60 + EXTRACT(MINUTE FROM hora_fim)) -
+                                  (EXTRACT(HOUR FROM hora_inicio) * 60 + EXTRACT(MINUTE FROM hora_inicio)))::INT
+                            ELSE (((EXTRACT(HOUR FROM hora_fim) * 60 + EXTRACT(MINUTE FROM hora_fim)) + 1440) -
+                                  (EXTRACT(HOUR FROM hora_inicio) * 60 + EXTRACT(MINUTE FROM hora_inicio)))::INT
+                        END
+                    ELSE NULL
+                END AS duracao_min,
+                status_lote,
+                observacao,
+                data_registro
+            FROM checklist_qualidade;
+        ''')
         conn.commit()
         cur.close()
         conn.close()
     except Exception as e:
-        print(f"Erro ao criar/atualizar tabela: {e}")
+        print(f"Erro ao criar/atualizar tabela ou view: {e}")
 
 
 init_db()
+
+
+def calcular_campos_derivados(data_inspecao, nr_op, hora_inicio, hora_fim):
+    data_str = ""
+    mes_ano = ""
+    if data_inspecao:
+        if isinstance(data_inspecao, str):
+            dt_obj = datetime.strptime(data_inspecao[:10], '%Y-%m-%d')
+        else:
+            dt_obj = data_inspecao
+        data_str = dt_obj.strftime('%Y-%m-%d')
+        mes_ano = dt_obj.strftime('%Y-%m')
+
+    chave_lote = f"{nr_op or ''}_{data_str}".strip("_")
+
+    duracao_min = ""
+    if hora_inicio and hora_fim:
+        if isinstance(hora_inicio, time):
+            min_ini = hora_inicio.hour * 60 + hora_inicio.minute
+        else:
+            h, m = map(int, str(hora_inicio).split(':')[:2])
+            min_ini = h * 60 + m
+
+        if isinstance(hora_fim, time):
+            min_fim = hora_fim.hour * 60 + hora_fim.minute
+        else:
+            h, m = map(int, str(hora_fim).split(':')[:2])
+            min_fim = h * 60 + m
+
+        diff = min_fim - min_ini
+        if diff < 0:
+            diff += 24 * 60
+        duracao_min = diff
+
+    return chave_lote, mes_ano, duracao_min
 
 
 def validar_quantidades(qtd_prontas, qtd_inspecionadas, lista_defeitos, qtds_defeitos):
@@ -362,16 +436,18 @@ def exportar_historico():
     output = io.StringIO()
     writer = csv.writer(output, delimiter=';')
     writer.writerow([
-        "Data", "Inspetor", "Fornecedor", "N° OP", "Família", "Referência",
-        "Qtd Prontas", "Qtd Inspecionadas", "Início", "Fim",
-        "Tamanho", "Defeito", "Qtd Defeito", "Status Lote"
+        "Data", "Mês/Ano", "Chave Lote", "Inspetor", "Fornecedor", "N° OP",
+        "Família", "Referência", "Qtd Prontas", "Qtd Inspecionadas",
+        "Início", "Fim", "Duração (min)", "Tamanho", "Defeito",
+        "Qtd Defeito", "Status Lote"
     ])
 
     for reg in registros:
+        chave_lote, mes_ano, duracao_min = calcular_campos_derivados(reg[1], reg[4], reg[12], reg[13])
         writer.writerow([
-            reg[1], reg[2], reg[3], reg[4], reg[5], reg[6],
-            reg[7], reg[8], reg[12] or "", reg[13] or "",
-            reg[9], reg[10], reg[11], reg[14] or ""
+            reg[1], mes_ano, chave_lote, reg[2], reg[3], reg[4],
+            reg[5], reg[6], reg[7], reg[8], reg[12] or "", reg[13] or "",
+            duracao_min, reg[9], reg[10], reg[11], reg[14] or ""
         ])
 
     csv_bytes = ("\ufeff" + output.getvalue()).encode('utf-8')
@@ -386,7 +462,6 @@ def exportar_historico():
 def historico():
     registros_filtrados, filtros = buscar_registros_filtrados()
 
-    # Indicadores do mês atual sempre calculados sobre a base completa do mês
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
@@ -409,9 +484,10 @@ def historico():
         if data_insp:
             dt_obj = datetime.strptime(data_insp, '%Y-%m-%d') if isinstance(data_insp, str) else data_insp
             if dt_obj.month == mes_atual and dt_obj.year == ano_atual:
-                total_lotes_mes.add(op)
+                _, _, _ = calcular_campos_derivados(data_insp, op, None, None)
+                total_lotes_mes.add(f"{op}_{dt_obj.strftime('%Y-%m-%d')}")
                 if status == "Reprovado":
-                    lotes_reprovados_mes.add(op)
+                    lotes_reprovados_mes.add(f"{op}_{dt_obj.strftime('%Y-%m-%d')}")
                     faccoes_reprovadas[fornecedor] = faccoes_reprovadas.get(fornecedor, 0) + 1
                 if defeito and "Nenhum Defeito" not in defeito:
                     defeitos_recorrentes[defeito] = defeitos_recorrentes.get(defeito, 0) + (q_def or 1)
@@ -450,7 +526,7 @@ def historico():
         <title>Histórico e Indicadores de Qualidade</title>
         <style>
             body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }}
-            .container {{ max-width: 1500px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }}
+            .container {{ max-width: 1650px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }}
             h2 {{ color: #1e293b; margin-top: 0; }}
             .top-actions {{ display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }}
 
@@ -463,155 +539,4 @@ def historico():
 
             .filtros-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; }}
             .filtros-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; }}
-            .filtros-box label {{ display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; }}
-            .filtros-box input, .filtros-box select {{ width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 13px; background: white; }}
-            .filtros-btns {{ display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }}
-
-            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; white-space: nowrap; }}
-            th, td {{ border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }}
-            th {{ background-color: #3b82f6; color: white; }}
-            tr:nth-child(even) {{ background-color: #f8fafc; }}
-            .btn-voltar {{ display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; }}
-            .btn-voltar:hover {{ background: #2563eb; }}
-            .btn-exportar {{ display: inline-block; padding: 10px 18px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; }}
-            .btn-exportar:hover {{ background: #059669; }}
-            .btn-filtrar {{ padding: 8px 14px; background: #1e293b; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }}
-            .btn-limpar {{ padding: 8px 14px; background: #e2e8f0; color: #334155; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; }}
-            .btn-editar {{ padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }}
-            .btn-excluir {{ padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }}
-            .badge-aprovado {{ background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }}
-            .badge-reprovado {{ background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>📊 Painel de Indicadores & Histórico de Inspeções</h2>
-            <p style="color: #64748b; font-size: 14px;">Resumo do mês atual e histórico completo com filtros e exportação.</p>
-            <div class="top-actions">
-                <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
-                <a href="{url_exportar}" class="btn-exportar">📥 Exportar CSV (Excel)</a>
-            </div>
-
-            <div class="cards-grid">
-                <div class="card">
-                    <h3>Lotes Inspecionados (Mês)</h3>
-                    <div class="value">{qtd_lotes_mes_count}</div>
-                </div>
-                <div class="card">
-                    <h3>Índice de Reprovados (Mês)</h3>
-                    <div class="value" style="color: {'#dc2626' if indice_reprovados_mes > 0 else '#059669'};">{indice_reprovados_mes:.1f}%</div>
-                </div>
-                <div class="card">
-                    <h3>Top Facções Reprovadas</h3>
-                    <ul>
-    '''
-
-    if ranking_faccoes:
-        for faccao, qtd in ranking_faccoes:
-            html += f"<li><b>{faccao}</b>: {qtd} lote(s)</li>"
-    else:
-        html += "<li>Nenhuma reprovação no mês.</li>"
-
-    html += '''
-                    </ul>
-                </div>
-                <div class="card">
-                    <h3>Defeitos Mais Recorrentes</h3>
-                    <ul>
-    '''
-
-    if ranking_defeitos:
-        for defeito, qtd in ranking_defeitos:
-            html += f"<li><b>{defeito}</b>: {qtd} ocorrência(s)</li>"
-    else:
-        html += "<li>Nenhum defeito registrado.</li>"
-
-    html += f'''
-                    </ul>
-                </div>
-            </div>
-
-            <form method="GET" action="/historico" class="filtros-box">
-                <div class="filtros-grid">
-                    <div>
-                        <label for="op">N° OP</label>
-                        <input type="text" id="op" name="op" value="{filtros['op']}" placeholder="Ex: 10452">
-                    </div>
-                    <div>
-                        <label for="fornecedor">Fornecedor</label>
-                        <select id="fornecedor" name="fornecedor">{opcoes_fornecedor}</select>
-                    </div>
-                    <div>
-                        <label for="inspetor">Inspetor</label>
-                        <select id="inspetor" name="inspetor">{opcoes_inspetor}</select>
-                    </div>
-                    <div>
-                        <label for="status">Status</label>
-                        <select id="status" name="status">{opcoes_status}</select>
-                    </div>
-                    <div>
-                        <label for="data_ini">Data De</label>
-                        <input type="date" id="data_ini" name="data_ini" value="{filtros['data_ini']}">
-                    </div>
-                    <div>
-                        <label for="data_fim">Data Até</label>
-                        <input type="date" id="data_fim" name="data_fim" value="{filtros['data_fim']}">
-                    </div>
-                </div>
-                <div class="filtros-btns">
-                    <button type="submit" class="btn-filtrar">🔍 Aplicar Filtros</button>
-                    <a href="/historico" class="btn-limpar">Limpar Filtros</a>
-                </div>
-            </form>
-
-            <h3 style="color: #1e293b; margin-top: 10px;">Histórico Detalhado ({len(registros_filtrados)} linha(s))</h3>
-            <table>
-                <tr>
-                    <th>Data</th>
-                    <th>Inspetor</th>
-                    <th>Fornecedor</th>
-                    <th>N° OP</th>
-                    <th>Família</th>
-                    <th>Referência</th>
-                    <th>Qtd Prontas</th>
-                    <th>Qtd Inspecionadas</th>
-                    <th>Início</th>
-                    <th>Fim</th>
-                    <th>Tamanho</th>
-                    <th>Defeito</th>
-                    <th>Qtd Defeito</th>
-                    <th>Status Lote</th>
-                    <th>Ações</th>
-                </tr>
-    '''
-
-    for reg in registros_filtrados:
-        status_badge = (
-            "<span class='badge-aprovado'>Aprovado</span>" if reg[14] == "Aprovado"
-            else "<span class='badge-reprovado'>Reprovado</span>" if reg[14] == "Reprovado"
-            else (reg[14] or "")
-        )
-        h_ini = reg[12] if reg[12] else ""
-        h_f = reg[13] if reg[13] else ""
-        html += (
-            f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td>"
-            f"<td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td>"
-            f"<td>{h_ini}</td><td>{h_f}</td><td>{reg[9]}</td><td>{reg[10]}</td>"
-            f"<td>{reg[11]}</td><td>{status_badge}</td>"
-            f"<td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> "
-            f"<a href='/excluir/{reg[0]}' class='btn-excluir' "
-            f"onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
-        )
-
-    html += '''
-            </table>
-        </div>
-    </body>
-    </html>
-    '''
-    return html
-
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+            .filtros-box label {{ display: block; font-size:
