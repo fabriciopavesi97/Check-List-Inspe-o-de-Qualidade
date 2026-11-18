@@ -62,7 +62,6 @@
 
     <form action="/salvar" method="POST">
         
-        <!-- Campo oculto para saber se é uma edição -->
         {% if registro %}
             <input type="hidden" name="registro_id" value="{{ registro[0] }}">
         {% endif %}
@@ -165,9 +164,22 @@
             <button type="button" class="btn-add" onclick="adicionarDefeito()">+ Adicionar Outro Defeito</button>
         {% endif %}
 
-        <div class="form-group" style="margin-top: 25px;">
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+
+        <div class="section-title">3. Conclusão da Inspeção</div>
+
+        <div class="form-group">
+            <label for="status_lote">Status do Lote / OP:</label>
+            <select id="status_lote" name="status_lote" required>
+                <option value="">Selecione o status do lote</option>
+                <option value="Aprovado" {% if registro and registro[13] == "Aprovado" %}selected{% endif %}>🟢 Aprovado</option>
+                <option value="Reprovado" {% if registro and registro[14] == "Reprovado" %}selected{% endif %}>🔴 Reprovado</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
             <label for="observacao">Observações Gerais:</label>
-            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[13] if registro else '' }}</textarea>
+            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[14] if registro else '' }}</textarea>
         </div>
 
         <button type="submit">{% if registro %}Atualizar Registro na Nuvem{% else %}Salvar Inspeção Completa na Nuvem{% endif %}</button>
