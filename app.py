@@ -6,10 +6,34 @@ app = Flask(__name__)
 
 INSPETORES = ["Inspetor 1", "Inspetor 2", "Inspetor 3", "Inspetor 4"]
 LOCAIS_INSPECAO = ["Externa", "Ibirama", "Brusque"]
+
+FORNECEDORES = [
+    "ADELI APARECIDA DOS SANTOS - ME", "CRISTIANE SILVA REZINI", "BEATRIZ CAROLINA",
+    "SV CONFECCAO LTDA", "ELISON JOAO DEBATIN (Janara)", "FABIANA KANNENBERG",
+    "DEJANETE FACCAO LTDA", "OZEAN INDUSTRIA E COMERCIO", "JUREMA CRISTOVAO",
+    "LETICIA SCHLINDWE", "JAQUE JS", "JEFFETUR CONFECCOES E TURISMO LTDA - ME",
+    "KAROLAIN", "MARIZA SCHURT", "DENILSON DE MENDONCA", "SARA RODRIGUES FRANESI",
+    "TAMIRES LONGEN", "EMILLY ELIAS", "EDSON DIETRICH", "CARLOS ZECHNER",
+    "ELISA VICTORINO DIETRICH", "MARCIA REGINA DA SILVA", "CLEONICE DA SILVA GOMES",
+    "ALEXANDRA KRAUSE", "MARILENE APARECIDA RODRIGUES", "MARIA DE LOURDES DOS SANTOS",
+    "ANA PAULA DA SILVA", "ELIANE CRISTINA DE SOUZA", "ROSANGELA APARECIDA",
+    "CLAUDIA REGINA SOARES", "LUCIANA DE OLIVEIRA", "JULIANA APARECIDA",
+    "VANESSA CRISTINA", "PATRICIA GOMES DA SILVA", "SANDRA REGINA",
+    "CAMILA SOUZA", "BEATRIZ SILVEIRA", "FRANCINE PEREIRA", "GIZELI DOS SANTOS",
+    "JESSICA EDUARDA", "KARINA SOUZA", "LARISSA LOPES", "MARIANA COSTA",
+    "NATALIA OLIVEIRA", "PAMELA RODRIGUES", "QUEZIA SANTOS", "RAQUEL VIEIRA",
+    "SABRINA MARTINS", "TATIANE LIMA", "VIVIANE SOUZA", "ALINE FERREIRA",
+    "BRUNA CARVALHO", "CARLA MENDES", "DANIELA DIAS", "ELIZABETH ROCHA",
+    "FERNANDA LOPES", "GABRIELA RIBEIRO", "HELENA MARTINS", "ISABELA COSTA",
+    "JULIA OLIVEIRA", "KAREN SANTOS", "LARISSA SILVA", "MARINA SOUZA",
+    "NATALIA LOPES", "PAMELA FERREIRA", "RAFAELA DIAS", "SABRINA ROCHA", "TATIANE SILVA"
+]
+
 TAMANHOS = [
     "PP", "P", "M", "G", "EG", "EGG", "PE", "ME", "GR", "XG",
     "1", "2", "3", "4", "6", "8", "10", "12", "14", "16", "18", "U"
 ]
+
 DEFEITOS = [
     "Alça Torcida", "Diferença de cavas", "Arremate com bolinha", "Arremate desencontrado",
     "Bainha cortada", "Bainha desencontrada", "Bainha torcida/enviasada", "Rebarba de bainha",
@@ -58,7 +82,6 @@ def init_db():
                 data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ''')
-        # Garante que as colunas novas existam caso a tabela já estivesse criada
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_inicio TIME;")
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_fim TIME;")
         conn.commit()
@@ -87,6 +110,7 @@ def index():
         'index.html', 
         inspetores=INSPETORES, 
         locais=LOCAIS_INSPECAO, 
+        fornecedores=FORNECEDORES,
         tamanhos=TAMANHOS, 
         defeitos=DEFEITOS,
         sucesso=sucesso,
@@ -221,7 +245,6 @@ def historico():
                 </tr>
     '''
     for reg in registros:
-        # reg indices: 0=id, 1=data, 2=inspetor, 3=fornecedor, 4=op, 5=familia, 6=ref, 7=prontas, 8=inspecionadas, 9=tam, 10=defeito, 11=qtd_def, 12=h_inicio, 13=h_fim, 14=status
         status_badge = f"<span class='badge-aprovado'>Aprovado</span>" if reg[14] == "Aprovado" else f"<span class='badge-reprovado'>Reprovado</span>" if reg[14] == "Reprovado" else reg[14]
         h_ini = reg[12] if reg[12] else ""
         h_f = reg[13] if reg[13] else ""
