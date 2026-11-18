@@ -51,15 +51,18 @@ def init_db():
                 tamanho VARCHAR(20),
                 defeito VARCHAR(150),
                 qtd_defeitos INT,
+                status_lote VARCHAR(20),
                 observacao TEXT,
                 data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ''')
+        # Garante que a coluna status_lote existe caso a tabela já tenha sido criada antes
+        cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS status_lote VARCHAR(20);")
         conn.commit()
         cur.close()
         conn.close()
     except Exception as e:
-        print(f"Erro ao criar tabela: {e}")
+        print(f"Erro ao criar/atualizar tabela: {e}")
 
 init_db()
 
@@ -72,7 +75,7 @@ def index():
     if edit_id:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, observacao FROM checklist_qualidade WHERE id = %s;", (edit_id,))
+        cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, status_lote, observacao FROM checklist_qualidade WHERE id = %s;", (edit_id,))
         registro = cur.fetchone()
         cur.close()
         conn.close()
@@ -99,6 +102,7 @@ def salvar():
     local_inspecao = request.form.get('local_inspecao')
     qtd_prontas = request.form.get('qtd_prontas') or 0
     qtd_inspecionadas = request.form.get('qtd_inspecionadas') or 0
+    status_lote = request.form.get('status_lote')
     observacao = request.form.get('observacao')
 
     tamanhos = request.form.getlist('tamanho[]')
@@ -115,12 +119,12 @@ def salvar():
                     data_inspecao = %s, inspetor = %s, fornecedor = %s, nr_op = %s, 
                     familia = %s, referencia_prod = %s, local_inspecao = %s, 
                     qtd_prontas = %s, qtd_inspecionadas = %s, tamanho = %s, 
-                    defeito = %s, qtd_defeitos = %s, observacao = %s
+                    defeito = %s, qtd_defeitos = %s, status_lote = %s, observacao = %s
                 WHERE id = %s
             ''', (
                 data_inspecao, inspetor, fornecedor, nr_op, familia,
                 referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
-                tamanhos[0], lista_defeitos[0], qtds_defeitos[0] or 0, observacao, registro_id
+                tamanhos[0], lista_defeitos[0], qtds_defeitos[0] or 0, status_lote, observacao, registro_id
             ))
     else:
         for tam, def_, qtd_def in zip(tamanhos, lista_defeitos, qtds_defeitos):
@@ -129,12 +133,12 @@ def salvar():
                     INSERT INTO checklist_qualidade (
                         data_inspecao, inspetor, fornecedor, nr_op, familia, 
                         referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, 
-                        tamanho, defeito, qtd_defeitos, observacao
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        tamanho, defeito, qtd_defeitos, status_lote, observacao
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ''', (
                     data_inspecao, inspetor, fornecedor, nr_op, familia,
                     referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
-                    tam, def_, qtd_def or 0, observacao
+                    tam, def_, qtd_def or 0, status_lote, observacao
                 ))
 
     conn.commit()
@@ -157,7 +161,7 @@ def excluir(id):
 def historico():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos FROM checklist_qualidade ORDER BY id DESC;")
+    cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, status_lote FROM checklist_qualidade ORDER BY id DESC;")
     registros = cur.fetchall()
     cur.close()
     conn.close()
@@ -170,7 +174,7 @@ def historico():
         <title>Histórico de Inspeções</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }
-            .container { max-width: 1350px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
+            .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
             h2 { color: #1e293b; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; white-space: nowrap; }
             th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
@@ -182,6 +186,8 @@ def historico():
             .btn-editar:hover { background: #d97706; }
             .btn-excluir { padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
             .btn-excluir:hover { background: #dc2626; }
+            .badge-aprovado { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }
+            .badge-reprovado { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }
         </style>
     </head>
     <body>
@@ -202,11 +208,13 @@ def historico():
                     <th>Tamanho</th>
                     <th>Defeito</th>
                     <th>Qtd Defeito</th>
+                    <th>Status Lote</th>
                     <th>Ações</th>
                 </tr>
     '''
     for reg in registros:
-        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{reg[9]}</td><td>{reg[10]}</td><td>{reg[11]}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> <a href='/excluir/{reg[0]}' class='btn-excluir' onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
+        status_badge = f"<span class='badge-aprovado'>Aprovado</span>" if reg[12] == "Aprovado" else f"<span class='badge-reprovado'>Reprovado</span>" if reg[12] == "Reprovado" else reg[12]
+        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{reg[9]}</td><td>{reg[10]}</td><td>{reg[11]}</td><td>{status_badge}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> <a href='/excluir/{reg[0]}' class='btn-excluir' onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
     
     html += '''
             </table>
