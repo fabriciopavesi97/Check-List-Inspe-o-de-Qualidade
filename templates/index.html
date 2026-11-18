@@ -103,7 +103,7 @@
         <div class="row">
             <div class="form-group">
                 <label for="familia">Família:</label>
-                <input type="text" id="familia" name="familia" value="{{ registro[5] if registro else '' }}" placeholder="Família do produto">
+                <input type="text" id="familia" name="familia" value="{{ registro[5] if registro else '' }}" placeholder="Família do produto" required>
             </div>
             <div class="form-group">
                 <label for="referencia_prod">Referência do Produto:</label>
@@ -150,7 +150,7 @@
                     </div>
                     <div class="form-group">
                         <label>Qtd Peças c/ Defeito:</label>
-                        <input type="number" name="qtd_defeitos[]" min="1" value="{{ registro[12] if registro else '1' }}" required>
+                        <input type="number" name="qtd_defeitos[]" min="0" value="{{ registro[12] if registro else '0' }}" required>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
@@ -213,7 +213,7 @@
         const novoBox = primeiroBox.cloneNode(true);
         
         novoBox.querySelectorAll('select').forEach(sel => sel.value = '');
-        novoBox.querySelectorAll('input').forEach(inp => inp.value = '1');
+        novoBox.querySelectorAll('input').forEach(inp => inp.value = '0');
 
         if (!novoBox.querySelector('.btn-remove')) {
             const btnRemover = document.createElement('button');
