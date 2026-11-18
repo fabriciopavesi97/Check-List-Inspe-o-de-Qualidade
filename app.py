@@ -539,4 +539,161 @@ def historico():
 
             .filtros-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; }}
             .filtros-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; }}
-            .filtros-box label {{ display: block; font-size:
+            .filtros-box label {{ display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; }}
+            .filtros-box input, .filtros-box select {{ width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 13px; background: white; }}
+            .filtros-btns {{ display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }}
+
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; white-space: nowrap; }}
+            th, td {{ border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }}
+            th {{ background-color: #3b82f6; color: white; }}
+            tr:nth-child(even) {{ background-color: #f8fafc; }}
+            .btn-voltar {{ display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; }}
+            .btn-voltar:hover {{ background: #2563eb; }}
+            .btn-exportar {{ display: inline-block; padding: 10px 18px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; }}
+            .btn-exportar:hover {{ background: #059669; }}
+            .btn-filtrar {{ padding: 8px 14px; background: #1e293b; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }}
+            .btn-limpar {{ padding: 8px 14px; background: #e2e8f0; color: #334155; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; }}
+            .btn-editar {{ padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }}
+            .btn-excluir {{ padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }}
+            .badge-aprovado {{ background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }}
+            .badge-reprovado {{ background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>📊 Painel de Indicadores & Histórico de Inspeções</h2>
+            <p style="color: #64748b; font-size: 14px;">Resumo do mês atual, campos calculados para análise e exportação em CSV.</p>
+            <div class="top-actions">
+                <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
+                <a href="{url_exportar}" class="btn-exportar">📥 Exportar CSV (Excel)</a>
+            </div>
+
+            <div class="cards-grid">
+                <div class="card">
+                    <h3>Lotes Inspecionados (Mês)</h3>
+                    <div class="value">{qtd_lotes_mes_count}</div>
+                </div>
+                <div class="card">
+                    <h3>Índice de Reprovados (Mês)</h3>
+                    <div class="value" style="color: {'#dc2626' if indice_reprovados_mes > 0 else '#059669'};">{indice_reprovados_mes:.1f}%</div>
+                </div>
+                <div class="card">
+                    <h3>Top Facções Reprovadas</h3>
+                    <ul>
+    '''
+
+    if ranking_faccoes:
+        for faccao, qtd in ranking_faccoes:
+            html += f"<li><b>{faccao}</b>: {qtd} lote(s)</li>"
+    else:
+        html += "<li>Nenhuma reprovação no mês.</li>"
+
+    html += '''
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Defeitos Mais Recorrentes</h3>
+                    <ul>
+    '''
+
+    if ranking_defeitos:
+        for defeito, qtd in ranking_defeitos:
+            html += f"<li><b>{defeito}</b>: {qtd} ocorrência(s)</li>"
+    else:
+        html += "<li>Nenhum defeito registrado.</li>"
+
+    html += f'''
+                    </ul>
+                </div>
+            </div>
+
+            <form method="GET" action="/historico" class="filtros-box">
+                <div class="filtros-grid">
+                    <div>
+                        <label for="op">N° OP</label>
+                        <input type="text" id="op" name="op" value="{filtros['op']}" placeholder="Ex: 10452">
+                    </div>
+                    <div>
+                        <label for="fornecedor">Fornecedor</label>
+                        <select id="fornecedor" name="fornecedor">{opcoes_fornecedor}</select>
+                    </div>
+                    <div>
+                        <label for="inspetor">Inspetor</label>
+                        <select id="inspetor" name="inspetor">{opcoes_inspetor}</select>
+                    </div>
+                    <div>
+                        <label for="status">Status</label>
+                        <select id="status" name="status">{opcoes_status}</select>
+                    </div>
+                    <div>
+                        <label for="data_ini">Data De</label>
+                        <input type="date" id="data_ini" name="data_ini" value="{filtros['data_ini']}">
+                    </div>
+                    <div>
+                        <label for="data_fim">Data Até</label>
+                        <input type="date" id="data_fim" name="data_fim" value="{filtros['data_fim']}">
+                    </div>
+                </div>
+                <div class="filtros-btns">
+                    <button type="submit" class="btn-filtrar">🔍 Aplicar Filtros</button>
+                    <a href="/historico" class="btn-limpar">Limpar Filtros</a>
+                </div>
+            </form>
+
+            <h3 style="color: #1e293b; margin-top: 10px;">Histórico Detalhado ({len(registros_filtrados)} linha(s))</h3>
+            <table>
+                <tr>
+                    <th>Data</th>
+                    <th>Mês/Ano</th>
+                    <th>Chave Lote</th>
+                    <th>Inspetor</th>
+                    <th>Fornecedor</th>
+                    <th>N° OP</th>
+                    <th>Família</th>
+                    <th>Referência</th>
+                    <th>Qtd Prontas</th>
+                    <th>Qtd Inspecionadas</th>
+                    <th>Início</th>
+                    <th>Fim</th>
+                    <th>Duração (min)</th>
+                    <th>Tamanho</th>
+                    <th>Defeito</th>
+                    <th>Qtd Defeito</th>
+                    <th>Status Lote</th>
+                    <th>Ações</th>
+                </tr>
+    '''
+
+    for reg in registros_filtrados:
+        chave_lote, mes_ano, duracao_min = calcular_campos_derivados(reg[1], reg[4], reg[12], reg[13])
+        status_badge = (
+            "<span class='badge-aprovado'>Aprovado</span>" if reg[14] == "Aprovado"
+            else "<span class='badge-reprovado'>Reprovado</span>" if reg[14] == "Reprovado"
+            else (reg[14] or "")
+        )
+        h_ini = reg[12] if reg[12] else ""
+        h_f = reg[13] if reg[13] else ""
+        dur_txt = f"{duracao_min} min" if duracao_min != "" else ""
+        html += (
+            f"<tr><td>{reg[1]}</td><td>{mes_ano}</td><td>{chave_lote}</td>"
+            f"<td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td>"
+            f"<td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{h_ini}</td>"
+            f"<td>{h_f}</td><td>{dur_txt}</td><td>{reg[9]}</td><td>{reg[10]}</td>"
+            f"<td>{reg[11]}</td><td>{status_badge}</td>"
+            f"<td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> "
+            f"<a href='/excluir/{reg[0]}' class='btn-excluir' "
+            f"onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
+        )
+
+    html += '''
+            </table>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
