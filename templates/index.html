@@ -121,24 +121,34 @@
             </div>
         </div>
 
-        <div class="form-group">
-            <label for="local_inspecao">Local da Inspeção:</label>
-            <select id="local_inspecao" name="local_inspecao" required>
-                <option value="">Selecione o local</option>
-                {% for item in locais %}
-                    <option value="{{ item }}" {% if registro and registro[7] == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
+        <div class="row">
+            <div class="form-group">
+                <label for="local_inspecao">Local da Inspeção:</label>
+                <select id="local_inspecao" name="local_inspecao" required>
+                    <option value="">Selecione o local</option>
+                    {% for item in locais %}
+                        <option value="{{ item }}" {% if registro and registro[7] == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tipo_inspecao">Tipo de Inspeção:</label>
+                <select id="tipo_inspecao" name="tipo_inspecao" required>
+                    {% for item in tipos_inspecao %}
+                        <option value="{{ item }}" {% if registro and registro[8] == item %}selected{% elif not registro and item == '1ª Inspeção' %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
 
         <div class="row">
             <div class="form-group">
                 <label for="qtd_prontas">Qtd Peças Prontas:</label>
-                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" value="{{ registro[8] if registro else '' }}" placeholder="0" required>
+                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" value="{{ registro[9] if registro else '' }}" placeholder="0" required>
             </div>
             <div class="form-group">
                 <label for="qtd_inspecionadas">Qtd Peças Inspecionadas:</label>
-                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" value="{{ registro[9] if registro else '' }}" placeholder="0" required>
+                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" value="{{ registro[10] if registro else '' }}" placeholder="0" required>
             </div>
         </div>
 
@@ -154,13 +164,13 @@
                         <select name="tamanho[]" class="campo-tamanho" required>
                             <option value="">Selecione</option>
                             {% for item in tamanhos %}
-                                <option value="{{ item }}" {% if registro and registro[10] == item %}selected{% endif %}>{{ item }}</option>
+                                <option value="{{ item }}" {% if registro and registro[11] == item %}selected{% endif %}>{{ item }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Qtd Peças c/ Defeito:</label>
-                        <input type="number" name="qtd_defeitos[]" class="campo-qtd-defeito" min="0" value="{{ registro[12] if registro else '0' }}" required>
+                        <input type="number" name="qtd_defeitos[]" class="campo-qtd-defeito" min="0" value="{{ registro[13] if registro else '0' }}" required>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
@@ -168,7 +178,7 @@
                     <select name="defeito[]" required>
                         <option value="">Selecione o defeito</option>
                         {% for item in defeitos %}
-                            <option value="{{ item }}" {% if registro and registro[11] == item %}selected{% endif %}>{{ item }}</option>
+                            <option value="{{ item }}" {% if registro and registro[12] == item %}selected{% endif %}>{{ item }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -186,11 +196,11 @@
         <div class="row">
             <div class="form-group">
                 <label for="hora_inicio">Hora Início:</label>
-                <input type="time" id="hora_inicio" name="hora_inicio" value="{{ registro[12] if registro else '' }}" required onchange="calcularTempo()">
+                <input type="time" id="hora_inicio" name="hora_inicio" value="{{ registro[14] if registro else '' }}" required onchange="calcularTempo()">
             </div>
             <div class="form-group">
                 <label for="hora_fim">Hora Fim:</label>
-                <input type="time" id="hora_fim" name="hora_fim" value="{{ registro[13] if registro else '' }}" required onchange="calcularTempo()">
+                <input type="time" id="hora_fim" name="hora_fim" value="{{ registro[15] if registro else '' }}" required onchange="calcularTempo()">
             </div>
         </div>
         <div id="display-tempo" class="tempo-gasto-box" style="display: none;"></div>
@@ -199,14 +209,14 @@
             <label for="status_lote">Status do Lote / OP:</label>
             <select id="status_lote" name="status_lote" required onchange="verificarStatus()">
                 <option value="">Selecione o status do lote</option>
-                <option value="Aprovado" {% if registro and registro[14] == "Aprovado" %}selected{% endif %}>🟢 Aprovado</option>
-                <option value="Reprovado" {% if registro and registro[15] == "Reprovado" %}selected{% endif %}>🔴 Reprovado</option>
+                <option value="Aprovado" {% if registro and registro[16] == "Aprovado" %}selected{% endif %}>🟢 Aprovado</option>
+                <option value="Reprovado" {% if registro and registro[17] == "Reprovado" %}selected{% endif %}>🔴 Reprovado</option>
             </select>
         </div>
 
         <div class="form-group" style="margin-top: 15px;">
             <label for="observacao" id="label-obs">Observações Gerais:</label>
-            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[16] if registro else '' }}</textarea>
+            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[17] if registro else '' }}</textarea>
         </div>
 
         <button type="submit">{% if registro %}Atualizar Registro na Nuvem{% else %}Salvar Inspeção Completa na Nuvem{% endif %}</button>
@@ -222,16 +232,11 @@
         const container = document.getElementById('container-defeitos');
         const boxes = container.querySelectorAll('.defeito-card');
         const ultimoBox = boxes[boxes.length - 1];
-
-        // Guarda o tamanho selecionado no último bloco antes de clonar
         const ultimoTamanho = ultimoBox.querySelector('.campo-tamanho').value;
 
         const novoBox = ultimoBox.cloneNode(true);
-
-        // Mantém o tamanho selecionado anteriormente (mas continua livre para alterar)
         novoBox.querySelector('.campo-tamanho').value = ultimoTamanho;
 
-        // Reseta apenas o defeito e a quantidade de defeito do novo bloco
         const selDefeito = novoBox.querySelector('select[name="defeito[]"]');
         if (selDefeito) selDefeito.value = '';
         novoBox.querySelector('.campo-qtd-defeito').value = '0';
