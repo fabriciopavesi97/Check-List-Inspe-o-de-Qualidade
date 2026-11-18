@@ -1,6 +1,7 @@
 import os
 import psycopg2
 from flask import Flask, render_template, request, redirect, url_for
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -242,40 +243,148 @@ def excluir(id):
 def historico():
     conn = get_db_connection()
     cur = conn.cursor()
+    
+    # Busca todos os registros
     cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, hora_inicio, hora_fim, status_lote FROM checklist_qualidade ORDER BY id DESC;")
     registros = cur.fetchall()
+    
+    # -------------------------------------------------------------
+    # CÁLCULOS DOS INDICADORES DO MÊS ATUAL (Mês e Ano correntes)
+    # -------------------------------------------------------------
+    mes_atual = datetime.now().month
+    ano_atual = datetime.now().year
+    
+    total_lotes_mes = set()
+    lotes_reprovados_mes = set()
+    total_lotes_geral_mes = 0
+    faccoes_reprovadas = {}
+    defeitos_recorrentes = {}
+    
+    # Dicionário auxiliar para checar status único por OP no mês
+    status_por_op_mes = {}
+    
+    for reg in registros:
+        data_insp = reg[1] # Tipo Date ou string
+        if data_insp:
+            # Se vier como string ou date, tratamos o mês e ano
+            if isinstance(data_insp, str):
+                dt_obj = datetime.strptime(data_insp, '%Y-%m-%d')
+            else:
+                dt_obj = data_insp
+                
+            if dt_obj.month == mes_atual and dt_obj.year == ano_atual:
+                op = reg[4]
+                fornecedor = reg[3]
+                status = reg[14]
+                defeito = reg[10]
+                q_def = reg[11]
+                
+                total_lotes_mes.add(op)
+                status_por_op_mes[op] = status
+                
+                if status == "Reprovado":
+                    lotes_reprovados_mes.add(op)
+                    faccoes_reprovadas[fornecedor] = faccoes_reprovadas.get(fornecedor, 0) + 1
+                
+                if defeito and "Nenhum Defeito" not in defeito:
+                    defeitos_recorrentes[defeito] = defeitos_recorrentes.get(defeito, 0) + (q_def or 1)
+
+    qtd_lotes_mes_count = len(total_lotes_mes)
+    qtd_reprovados_mes_count = len(lotes_reprovados_mes)
+    
+    indice_reprovados_mes = (qtd_reprovados_mes_count / qtd_lotes_mes_count * 100) if qtd_lotes_mes_count > 0 else 0
+    
+    # Ordenar ranking de facções reprovadas (maior para menor)
+    ranking_faccoes = sorted(faccoes_reprovadas.items(), key=lambda x: x[1], reverse=True)[:5]
+    
+    # Ordenar defeitos mais recorrentes (maior para menor)
+    ranking_defeitos = sorted(defeitos_recorrentes.items(), key=lambda x: x[1], reverse=True)[:5]
+
     cur.close()
     conn.close()
     
-    html = '''
+    # HTML da Página de Histórico com os Cards de Indicadores do Mês
+    html = f'''
     <!DOCTYPE html>
     <html lang="pt-br">
     <head>
         <meta charset="UTF-8">
-        <title>Histórico de Inspeções</title>
+        <title>Histórico e Indicadores de Qualidade</title>
         <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }
-            .container { max-width: 1500px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
-            h2 { color: #1e293b; margin-top: 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; white-space: nowrap; }
-            th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
-            th { background-color: #3b82f6; color: white; }
-            tr:nth-child(even) { background-color: #f8fafc; }
-            .btn-voltar { display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
-            .btn-voltar:hover { background: #2563eb; }
-            .btn-editar { padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }
-            .btn-editar:hover { background: #d97706; }
-            .btn-excluir { padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }
-            .btn-excluir:hover { background: #dc2626; }
-            .badge-aprovado { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }
-            .badge-reprovado { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }}
+            .container {{ max-width: 1500px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }}
+            h2 {{ color: #1e293b; margin-top: 0; }}
+            
+            /* Estilo dos Cards de Resumo */
+            .cards-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin: 20px 0 30px 0; }}
+            .card {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }}
+            .card h3 {{ margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase; }}
+            .card .value {{ font-size: 24px; font-weight: 700; color: #1e293b; }}
+            .card ul {{ margin: 5px 0 0 0; padding-left: 15px; font-size: 13px; color: #334155; }}
+            .card li {{ margin-bottom: 4px; }}
+
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; white-space: nowrap; }}
+            th, td {{ border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }}
+            th {{ background-color: #3b82f6; color: white; }}
+            tr:nth-child(even) {{ background-color: #f8fafc; }}
+            .btn-voltar {{ display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.2s; }}
+            .btn-voltar:hover {{ background: #2563eb; }}
+            .btn-editar {{ padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }}
+            .btn-editar:hover {{ background: #d97706; }}
+            .btn-excluir {{ padding: 5px 10px; background: #ef4444; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; }}
+            .btn-excluir:hover {{ background: #dc2626; }}
+            .badge-aprovado {{ background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }}
+            .badge-reprovado {{ background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>📊 Histórico de Inspeções (Completo e Ilimitado)</h2>
-            <p style="color: #64748b; font-size: 14px;">Todos os registros salvos na nuvem.</p>
+            <h2>📊 Painel de Indicadores & Histórico de Inspeções</h2>
+            <p style="color: #64748b; font-size: 14px;">Resumo consolidado do mês atual e registros salvos na nuvem.</p>
             <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
+
+            <!-- CARDS DE RESUMO DO MÊS -->
+            <div class="cards-grid">
+                <div class="card">
+                    <h3>Lotes Inspecionados (Mês)</h3>
+                    <div class="value">{qtd_lotes_mes_count}</div>
+                </div>
+                <div class="card">
+                    <h3>Índice de Reprovados (Mês)</h3>
+                    <div class="value" style="color: {'#dc2626' if indice_reprovados_mes > 0 else '#059669'};">{indice_reprovados_mes:.1f}%</div>
+                </div>
+                <div class="card">
+                    <h3>Top Facções Reprovadas</h3>
+                    <ul>
+    '''
+    
+    if ranking_faccoes:
+        for faccao, qtd in ranking_faccoes:
+            html += f"<li><b>{faccao}</b>: {qtd} lote(s)</li>"
+    else:
+        html += "<li>Nenhuma reprovação no mês.</li>"
+        
+    html += '''
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Defeitos Mais Recorrentes</h3>
+                    <ul>
+    '''
+    
+    if ranking_defeitos:
+        for defeito, qtd in ranking_defeitos:
+            html += f"<li><b>{defeito}</b>: {qtd} ocorrência(s)</li>"
+    else:
+        html += "<li>Nenhum defeito registrado.</li>"
+        
+    html += f'''
+                    </ul>
+                </div>
+            </div>
+
+            <!-- TABELA COMPLETA DE REGISTROS -->
+            <h3 style="color: #1e293b; margin-top: 30px;">Histórico Detalhado (Ilimitado)</h3>
             <table>
                 <tr>
                     <th>Data</th>
@@ -295,6 +404,7 @@ def historico():
                     <th>Ações</th>
                 </tr>
     '''
+    
     for reg in registros:
         status_badge = f"<span class='badge-aprovado'>Aprovado</span>" if reg[14] == "Aprovado" else f"<span class='badge-reprovado'>Reprovado</span>" if reg[14] == "Reprovado" else reg[14]
         h_ini = reg[12] if reg[12] else ""
