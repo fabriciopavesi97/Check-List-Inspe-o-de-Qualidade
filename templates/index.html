@@ -20,7 +20,7 @@
         
         .form-group { margin-bottom: 18px; }
         label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 13px; color: #475569; }
-        input[type="text"], input[type="number"], input[type="date"], select, textarea {
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"], select, textarea {
             width: 100%; padding: 11px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #f8fafc; transition: border-color 0.2s, background-color 0.2s;
         }
         input:focus, select:focus, textarea:focus { border-color: #3b82f6; background-color: #fff; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
@@ -168,18 +168,29 @@
 
         <div class="section-title">3. Conclusão da Inspeção</div>
 
+        <div class="row">
+            <div class="form-group">
+                <label for="hora_inicio">Hora Início:</label>
+                <input type="time" id="hora_inicio" name="hora_inicio" value="{{ registro[12] if registro else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label for="hora_fim">Hora Fim:</label>
+                <input type="time" id="hora_fim" name="hora_fim" value="{{ registro[13] if registro else '' }}" required>
+            </div>
+        </div>
+
         <div class="form-group">
             <label for="status_lote">Status do Lote / OP:</label>
             <select id="status_lote" name="status_lote" required>
                 <option value="">Selecione o status do lote</option>
-                <option value="Aprovado" {% if registro and registro[13] == "Aprovado" %}selected{% endif %}>🟢 Aprovado</option>
-                <option value="Reprovado" {% if registro and registro[14] == "Reprovado" %}selected{% endif %}>🔴 Reprovado</option>
+                <option value="Aprovado" {% if registro and registro[14] == "Aprovado" %}selected{% endif %}>🟢 Aprovado</option>
+                <option value="Reprovado" {% if registro and registro[15] == "Reprovado" %}selected{% endif %}>🔴 Reprovado</option>
             </select>
         </div>
 
         <div class="form-group" style="margin-top: 15px;">
             <label for="observacao">Observações Gerais:</label>
-            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[14] if registro else '' }}</textarea>
+            <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[16] if registro else '' }}</textarea>
         </div>
 
         <button type="submit">{% if registro %}Atualizar Registro na Nuvem{% else %}Salvar Inspeção Completa na Nuvem{% endif %}</button>
