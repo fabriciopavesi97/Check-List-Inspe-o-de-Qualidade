@@ -36,6 +36,7 @@ TAMANHOS = [
 ]
 
 DEFEITOS = [
+    "Nenhum Defeito Encontrado (Lote Perfeito)",
     "Alça Torcida", "Diferença de cavas", "Arremate com bolinha", "Arremate desencontrado",
     "Bainha cortada", "Bainha desencontrada", "Bainha torcida/enviasada", "Rebarba de bainha",
     "Bainha com bananinha", "Biquinho decote fora do centro", "Biquinho decote com acabamento mal feito",
@@ -256,8 +257,6 @@ def historico():
         </div>
     </body>
     </html>
-    '''
-    html += '''
     '''
     return html
 
