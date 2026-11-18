@@ -51,13 +51,16 @@ def init_db():
                 tamanho VARCHAR(20),
                 defeito VARCHAR(150),
                 qtd_defeitos INT,
+                hora_inicio TIME,
+                hora_fim TIME,
                 status_lote VARCHAR(20),
                 observacao TEXT,
                 data_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ''')
-        # Garante que a coluna status_lote existe caso a tabela já tenha sido criada antes
-        cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS status_lote VARCHAR(20);")
+        # Garante que as colunas novas existam caso a tabela já estivesse criada
+        cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_inicio TIME;")
+        cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_fim TIME;")
         conn.commit()
         cur.close()
         conn.close()
@@ -75,7 +78,7 @@ def index():
     if edit_id:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, status_lote, observacao FROM checklist_qualidade WHERE id = %s;", (edit_id,))
+        cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, hora_inicio, hora_fim, status_lote, observacao FROM checklist_qualidade WHERE id = %s;", (edit_id,))
         registro = cur.fetchone()
         cur.close()
         conn.close()
@@ -102,6 +105,8 @@ def salvar():
     local_inspecao = request.form.get('local_inspecao')
     qtd_prontas = request.form.get('qtd_prontas') or 0
     qtd_inspecionadas = request.form.get('qtd_inspecionadas') or 0
+    hora_inicio = request.form.get('hora_inicio') or None
+    hora_fim = request.form.get('hora_fim') or None
     status_lote = request.form.get('status_lote')
     observacao = request.form.get('observacao')
 
@@ -119,12 +124,13 @@ def salvar():
                     data_inspecao = %s, inspetor = %s, fornecedor = %s, nr_op = %s, 
                     familia = %s, referencia_prod = %s, local_inspecao = %s, 
                     qtd_prontas = %s, qtd_inspecionadas = %s, tamanho = %s, 
-                    defeito = %s, qtd_defeitos = %s, status_lote = %s, observacao = %s
+                    defeito = %s, qtd_defeitos = %s, hora_inicio = %s, hora_fim = %s, 
+                    status_lote = %s, observacao = %s
                 WHERE id = %s
             ''', (
                 data_inspecao, inspetor, fornecedor, nr_op, familia,
                 referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
-                tamanhos[0], lista_defeitos[0], qtds_defeitos[0] or 0, status_lote, observacao, registro_id
+                tamanhos[0], lista_defeitos[0], qtds_defeitos[0] or 0, hora_inicio, hora_fim, status_lote, observacao, registro_id
             ))
     else:
         for tam, def_, qtd_def in zip(tamanhos, lista_defeitos, qtds_defeitos):
@@ -133,12 +139,12 @@ def salvar():
                     INSERT INTO checklist_qualidade (
                         data_inspecao, inspetor, fornecedor, nr_op, familia, 
                         referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas, 
-                        tamanho, defeito, qtd_defeitos, status_lote, observacao
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        tamanho, defeito, qtd_defeitos, hora_inicio, hora_fim, status_lote, observacao
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ''', (
                     data_inspecao, inspetor, fornecedor, nr_op, familia,
                     referencia_prod, local_inspecao, qtd_prontas, qtd_inspecionadas,
-                    tam, def_, qtd_def or 0, status_lote, observacao
+                    tam, def_, qtd_def or 0, hora_inicio, hora_fim, status_lote, observacao
                 ))
 
     conn.commit()
@@ -161,7 +167,7 @@ def excluir(id):
 def historico():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, status_lote FROM checklist_qualidade ORDER BY id DESC;")
+    cur.execute("SELECT id, data_inspecao, inspetor, fornecedor, nr_op, familia, referencia_prod, qtd_prontas, qtd_inspecionadas, tamanho, defeito, qtd_defeitos, hora_inicio, hora_fim, status_lote FROM checklist_qualidade ORDER BY id DESC;")
     registros = cur.fetchall()
     cur.close()
     conn.close()
@@ -174,7 +180,7 @@ def historico():
         <title>Histórico de Inspeções</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }
-            .container { max-width: 1400px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
+            .container { max-width: 1500px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; }
             h2 { color: #1e293b; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; white-space: nowrap; }
             th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }
@@ -205,6 +211,8 @@ def historico():
                     <th>Referência</th>
                     <th>Qtd Prontas</th>
                     <th>Qtd Inspecionadas</th>
+                    <th>Início</th>
+                    <th>Fim</th>
                     <th>Tamanho</th>
                     <th>Defeito</th>
                     <th>Qtd Defeito</th>
@@ -213,8 +221,11 @@ def historico():
                 </tr>
     '''
     for reg in registros:
-        status_badge = f"<span class='badge-aprovado'>Aprovado</span>" if reg[12] == "Aprovado" else f"<span class='badge-reprovado'>Reprovado</span>" if reg[12] == "Reprovado" else reg[12]
-        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{reg[9]}</td><td>{reg[10]}</td><td>{reg[11]}</td><td>{status_badge}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> <a href='/excluir/{reg[0]}' class='btn-excluir' onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
+        # reg indices: 0=id, 1=data, 2=inspetor, 3=fornecedor, 4=op, 5=familia, 6=ref, 7=prontas, 8=inspecionadas, 9=tam, 10=defeito, 11=qtd_def, 12=h_inicio, 13=h_fim, 14=status
+        status_badge = f"<span class='badge-aprovado'>Aprovado</span>" if reg[14] == "Aprovado" else f"<span class='badge-reprovado'>Reprovado</span>" if reg[14] == "Reprovado" else reg[14]
+        h_ini = reg[12] if reg[12] else ""
+        h_f = reg[13] if reg[13] else ""
+        html += f"<tr><td>{reg[1]}</td><td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td><td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{h_ini}</td><td>{h_f}</td><td>{reg[9]}</td><td>{reg[10]}</td><td>{reg[11]}</td><td>{status_badge}</td><td><a href='/?edit_id={reg[0]}' class='btn-editar'>✏️ Editar</a> <a href='/excluir/{reg[0]}' class='btn-excluir' onclick='return confirm(\"Tem certeza que deseja excluir este registro?\");'>🗑️ Excluir</a></td></tr>"
     
     html += '''
             </table>
