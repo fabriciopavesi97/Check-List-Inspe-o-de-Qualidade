@@ -5,43 +5,285 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Check List para Inspeção de Qualidade</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        
-        .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 25px; }
-        h2 { color: #1e293b; margin: 0; font-size: 22px; }
-        .btn-historico { background-color: #3b82f6; color: white; padding: 9px 16px; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
-        .btn-historico:hover { background-color: #2563eb; }
-        .btn-cadastros { background-color: #475569; color: white; padding: 9px 16px; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: background 0.2s; }
-        .btn-cadastros:hover { background-color: #334155; }
-
-        .alert-sucesso { background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 15px; }
-        .alert-edicao { background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 14px; }
-        .alert-erro { background-color: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 14px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; text-align: center; font-size: 14px; }
-        .tempo-gasto-box { background: #e0f2fe; color: #0369a1; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-top: 5px; display: inline-block; }
-
-        .section-title { font-size: 15px; font-weight: 700; color: #475569; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .form-group { margin-bottom: 18px; }
-        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 13px; color: #475569; }
-        input[type="text"], input[type="number"], input[type="date"], input[type="time"], select, textarea {
-            width: 100%; padding: 11px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #f8fafc; transition: border-color 0.2s, background-color 0.2s;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
         }
-        input:focus, select:focus, textarea:focus { border-color: #3b82f6; background-color: #fff; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .container {
+            max-width: 820px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
 
-        .row { display: flex; gap: 15px; }
-        .row .form-group { flex: 1; }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        h2 {
+            color: #1e293b;
+            margin: 0;
+            font-size: 22px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-historico {
+            background-color: #3b82f6;
+            color: white;
+            padding: 9px 16px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-historico:hover {
+            background-color: #2563eb;
+        }
+        .btn-cadastros {
+            background-color: #475569;
+            color: white;
+            padding: 9px 16px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-cadastros:hover {
+            background-color: #334155;
+        }
 
-        .defeito-card { background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px; position: relative; }
-        
-        .btn-add { background-color: #e0f2fe; color: #0369a1; border: 1px dashed #38bdf8; padding: 12px; font-size: 14px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 5px; transition: background 0.2s; }
-        .btn-add:hover { background-color: #bae6fd; }
+        .alert-sucesso {
+            background-color: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 15px;
+        }
+        .alert-edicao {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 14px;
+        }
+        .alert-erro {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 14px;
+        }
 
-        .btn-remove { background-color: #fee2e2; color: #b91c1c; border: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; float: right; font-weight: 600; }
-        .btn-remove:hover { background-color: #fecaca; }
+        .info-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .tempo-gasto-box {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .resumo-defeito-box {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #1e293b;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-variant-numeric: tabular-nums;
+            transition: all 0.2s ease;
+        }
+        .resumo-defeito-box.alerta {
+            background: #fef2f2;
+            border-color: #fca5a5;
+            color: #991b1b;
+        }
+        .resumo-defeito-box.ok {
+            background: #f0fdf4;
+            border-color: #86efac;
+            color: #166534;
+        }
 
-        button[type="submit"] { background-color: #10b981; color: white; border: none; padding: 14px; font-size: 16px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 700; margin-top: 25px; transition: background 0.2s; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
-        button[type="submit"]:hover { background-color: #059669; }
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #475569;
+        }
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="time"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+            background-color: #f8fafc;
+            transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+            font-variant-numeric: tabular-nums;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #3b82f6;
+            background-color: #fff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        }
+
+        .row {
+            display: flex;
+            gap: 15px;
+        }
+        .row .form-group {
+            flex: 1;
+        }
+
+        .defeito-card {
+            background: #f8fafc;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .defeito-card.lote-perfeito {
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+
+        .btn-add {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            border: 1px dashed #38bdf8;
+            padding: 12px;
+            font-size: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 5px;
+            transition: background 0.2s;
+        }
+        .btn-add:hover {
+            background-color: #bae6fd;
+        }
+
+        .btn-remove {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border: none;
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            float: right;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .btn-remove:hover {
+            background-color: #fecaca;
+        }
+
+        button[type="submit"] {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 700;
+            margin-top: 25px;
+            transition: background 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+        }
+        button[type="submit"]:hover:not(:disabled) {
+            background-color: #059669;
+        }
+        button[type="submit"]:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 18px;
+                border-radius: 10px;
+            }
+            h2 {
+                font-size: 19px;
+            }
+            .row {
+                flex-direction: column;
+                gap: 0;
+            }
+            input[type="text"],
+            input[type="number"],
+            input[type="date"],
+            input[type="time"],
+            select,
+            textarea {
+                padding: 12px;
+                font-size: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -49,7 +291,7 @@
 <div class="container">
     <div class="header-top">
         <h2>📋 Check List de Inspeção de Qualidade</h2>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div class="header-actions">
             <a href="/historico" class="btn-historico">📊 Ver Histórico & Painel</a>
             <a href="/cadastros" class="btn-cadastros">⚙️ Cadastros</a>
         </div>
@@ -75,14 +317,14 @@
         </div>
     {% endif %}
 
-    <form action="/salvar" method="POST" onsubmit="return validarFormulario()">
-        
+    <form id="form-checklist" action="/salvar" method="POST" onsubmit="return validarFormulario()">
+
         {% if registro %}
             <input type="hidden" name="registro_id" value="{{ registro[0] }}">
         {% endif %}
 
         <div class="section-title">1. Dados Gerais da OP</div>
-        
+
         <div class="row">
             <div class="form-group">
                 <label for="data_inspecao">Data da Inspeção:</label>
@@ -149,17 +391,21 @@
         <div class="row">
             <div class="form-group">
                 <label for="qtd_prontas">Qtd Peças Prontas:</label>
-                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" value="{{ registro[9] if registro else '' }}" placeholder="0" required>
+                <input type="number" id="qtd_prontas" name="qtd_prontas" min="0" value="{{ registro[9] if registro else '' }}" placeholder="0" required oninput="atualizarResumoDefeitos()">
             </div>
             <div class="form-group">
                 <label for="qtd_inspecionadas">Qtd Peças Inspecionadas:</label>
-                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" value="{{ registro[10] if registro else '' }}" placeholder="0" required>
+                <input type="number" id="qtd_inspecionadas" name="qtd_inspecionadas" min="0" value="{{ registro[10] if registro else '' }}" placeholder="0" required oninput="atualizarResumoDefeitos()">
             </div>
         </div>
 
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
 
         <div class="section-title">2. Apontamento de Defeitos</div>
+
+        <div id="resumo-defeitos" class="resumo-defeito-box">
+            🔍 Defeitos apontados: <strong>0</strong> peça(s) | Índice sobre inspecionadas: <strong>0.0%</strong>
+        </div>
 
         <div id="container-defeitos">
             <div class="defeito-card">
@@ -175,12 +421,12 @@
                     </div>
                     <div class="form-group">
                         <label>Qtd Peças c/ Defeito:</label>
-                        <input type="number" name="qtd_defeitos[]" class="campo-qtd-defeito" min="0" value="{{ registro[13] if registro else '0' }}" required>
+                        <input type="number" name="qtd_defeitos[]" class="campo-qtd-defeito" min="0" value="{{ registro[13] if registro else '0' }}" required oninput="atualizarResumoDefeitos()">
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Defeito Encontrado:</label>
-                    <select name="defeito[]" required>
+                    <select name="defeito[]" class="campo-defeito" required onchange="atualizarCardDefeito(this)">
                         <option value="">Selecione o defeito</option>
                         {% for item in defeitos %}
                             <option value="{{ item }}" {% if registro and registro[12] == item %}selected{% endif %}>{{ item }}</option>
@@ -208,7 +454,10 @@
                 <input type="time" id="hora_fim" name="hora_fim" value="{{ registro[15] if registro else '' }}" required onchange="calcularTempo()">
             </div>
         </div>
-        <div id="display-tempo" class="tempo-gasto-box" style="display: none;"></div>
+
+        <div class="info-pills">
+            <div id="display-tempo" class="tempo-gasto-box" style="display: none;"></div>
+        </div>
 
         <div class="form-group" style="margin-top: 15px;">
             <label for="status_lote">Status do Lote / OP:</label>
@@ -224,8 +473,10 @@
             <textarea id="observacao" name="observacao" rows="3" placeholder="Insira detalhes ou ressalvas da inspeção...">{{ registro[17] if registro else '' }}</textarea>
         </div>
 
-        <button type="submit">{% if registro %}Atualizar Registro na Nuvem{% else %}Salvar Inspeção Completa na Nuvem{% endif %}</button>
-        
+        <button type="submit" id="btn-submit">
+            {% if registro %}Atualizar Registro na Nuvem{% else %}Salvar Inspeção Completa na Nuvem{% endif %}
+        </button>
+
         {% if registro %}
             <a href="/" style="display: block; text-align: center; margin-top: 10px; color: #64748b; text-decoration: none; font-weight: 600; font-size: 13px;">Cancelar Edição</a>
         {% endif %}
@@ -233,6 +484,38 @@
 </div>
 
 <script>
+    function atualizarCardDefeito(selectEl) {
+        const card = selectEl.closest('.defeito-card');
+        if (!card) return;
+        const val = selectEl.value || '';
+        if (val.includes('Nenhum Defeito')) {
+            card.classList.add('lote-perfeito');
+        } else {
+            card.classList.remove('lote-perfeito');
+        }
+    }
+
+    function atualizarResumoDefeitos() {
+        const resumoEl = document.getElementById('resumo-defeitos');
+        const qtdInspecionadas = parseInt(document.getElementById('qtd_inspecionadas').value || '0', 10);
+        const qtdProntas = parseInt(document.getElementById('qtd_prontas').value || '0', 10);
+
+        let somaDefeitos = 0;
+        document.querySelectorAll('.campo-qtd-defeito').forEach(inp => {
+            somaDefeitos += parseInt(inp.value || '0', 10);
+        });
+
+        const pct = qtdInspecionadas > 0 ? ((somaDefeitos / qtdInspecionadas) * 100).toFixed(1) : '0.0';
+        resumoEl.innerHTML = `🔍 Defeitos apontados: <strong>${somaDefeitos}</strong> peça(s) | Índice sobre inspecionadas: <strong>${pct}%</strong>`;
+
+        resumoEl.classList.remove('alerta', 'ok');
+        if (qtdInspecionadas > qtdProntas || somaDefeitos > qtdInspecionadas) {
+            resumoEl.classList.add('alerta');
+        } else if (qtdInspecionadas > 0) {
+            resumoEl.classList.add('ok');
+        }
+    }
+
     function adicionarDefeito() {
         const container = document.getElementById('container-defeitos');
         const boxes = container.querySelectorAll('.defeito-card');
@@ -240,22 +523,35 @@
         const ultimoTamanho = ultimoBox.querySelector('.campo-tamanho').value;
 
         const novoBox = ultimoBox.cloneNode(true);
+        novoBox.classList.remove('lote-perfeito');
         novoBox.querySelector('.campo-tamanho').value = ultimoTamanho;
 
         const selDefeito = novoBox.querySelector('select[name="defeito[]"]');
-        if (selDefeito) selDefeito.value = '';
-        novoBox.querySelector('.campo-qtd-defeito').value = '0';
+        if (selDefeito) {
+            selDefeito.value = '';
+            selDefeito.onchange = function() { atualizarCardDefeito(this); };
+        }
+
+        const inpQtd = novoBox.querySelector('.campo-qtd-defeito');
+        if (inpQtd) {
+            inpQtd.value = '0';
+            inpQtd.oninput = function() { atualizarResumoDefeitos(); };
+        }
 
         if (!novoBox.querySelector('.btn-remove')) {
             const btnRemover = document.createElement('button');
             btnRemover.type = 'button';
             btnRemover.className = 'btn-remove';
             btnRemover.innerText = '🗑️ Remover';
-            btnRemover.onclick = function() { novoBox.remove(); };
+            btnRemover.onclick = function() {
+                novoBox.remove();
+                atualizarResumoDefeitos();
+            };
             novoBox.insertBefore(btnRemover, novoBox.firstChild);
         }
 
         container.appendChild(novoBox);
+        atualizarResumoDefeitos();
     }
 
     function validarFormulario() {
@@ -267,6 +563,7 @@
             alerta.style.display = 'block';
             alerta.innerText = `⛔ A quantidade inspecionada (${qtdInspecionadas}) não pode ser maior que a quantidade de peças prontas (${qtdProntas}).`;
             alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            atualizarResumoDefeitos();
             return false;
         }
 
@@ -279,10 +576,17 @@
             alerta.style.display = 'block';
             alerta.innerText = `⛔ A soma das peças com defeito (${somaDefeitos}) não pode ser maior que a quantidade de peças inspecionadas (${qtdInspecionadas}).`;
             alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            atualizarResumoDefeitos();
             return false;
         }
 
         alerta.style.display = 'none';
+
+        const btnSubmit = document.getElementById('btn-submit');
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = '⏳ Salvando na nuvem...';
+        }
         return true;
     }
 
@@ -304,7 +608,7 @@
             const horas = Math.floor(diff / 60);
             const minutos = diff % 60;
 
-            display.style.display = 'block';
+            display.style.display = 'inline-block';
             display.innerText = `⏱️ Tempo total da inspeção: ${horas > 0 ? horas + 'h ' : ''}${minutos} minutos`;
         } else {
             display.style.display = 'none';
@@ -326,6 +630,13 @@
             txtObs.style.borderColor = '#cbd5e1';
         }
     }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.campo-defeito').forEach(sel => atualizarCardDefeito(sel));
+        atualizarResumoDefeitos();
+        calcularTempo();
+        verificarStatus();
+    });
 </script>
 
 </body>
