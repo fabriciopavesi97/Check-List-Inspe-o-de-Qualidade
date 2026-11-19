@@ -820,9 +820,9 @@ def cadastros():
             .add-form input {{ flex: 1; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }}
             .add-form button {{ padding: 9px 14px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }}
             .table-wrap {{ max-height: 430px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: white; }}
-            table {{ width: 100%; border-collapse: collapse; }}
+            table {{ width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }}
             th, td {{ padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 13px; }}
-            th {{ background: #3b82f6; color: white; position: sticky; top: 0; }}
+            th {{ background: #3b82f6; color: white; position: sticky; top: 0; z-index: 2; }}
             .badge-ativo {{ background: #d1fae5; color: #065f46; padding: 3px 7px; border-radius: 4px; font-weight: 600; font-size: 11px; }}
             .badge-inativo {{ background: #fee2e2; color: #991b1b; padding: 3px 7px; border-radius: 4px; font-weight: 600; font-size: 11px; }}
             .btn-inativar {{ padding: 4px 9px; background: #f59e0b; color: white; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; }}
@@ -1041,8 +1041,6 @@ def historico():
         opcoes_fornecedor += f'<option value="{f}" {sel}>{f}</option>'
 
     opcoes_inspetor = '<option value="">Todos os inspetores</option>'
-    for insp in INSPETORES_PADRAO:
-        pass
     for insp in inspetores:
         sel = 'selected' if filtros['inspetor'] == insp else ''
         opcoes_inspetor += f'<option value="{insp}" {sel}>{insp}</option>'
@@ -1077,8 +1075,8 @@ def historico():
             .cards-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin: 20px 0 25px 0; }}
             .card {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }}
             .card h3 {{ margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase; }}
-            .card .value {{ font-size: 24px; font-weight: 700; color: #1e293b; }}
-            .card ul {{ margin: 5px 0 0 0; padding-left: 15px; font-size: 13px; color: #334155; }}
+            .card .value {{ font-size: 24px; font-weight: 700; color: #1e293b; font-variant-numeric: tabular-nums; }}
+            .card ul {{ margin: 5px 0 0 0; padding-left: 15px; font-size: 13px; color: #334155; font-variant-numeric: tabular-nums; }}
             .card li {{ margin-bottom: 4px; }}
 
             .filtros-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; }}
@@ -1087,9 +1085,10 @@ def historico():
             .filtros-box input, .filtros-box select {{ width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 13px; background: white; }}
             .filtros-btns {{ display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }}
 
-            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; white-space: nowrap; }}
+            .table-scroll {{ max-height: 560px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 15px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }}
             th, td {{ border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; font-size: 13px; }}
-            th {{ background-color: #3b82f6; color: white; }}
+            th {{ background-color: #3b82f6; color: white; position: sticky; top: 0; z-index: 2; }}
             tr:nth-child(even) {{ background-color: #f8fafc; }}
             .btn-voltar {{ display: inline-block; padding: 10px 18px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; }}
             .btn-voltar:hover {{ background: #2563eb; }}
@@ -1194,33 +1193,35 @@ def historico():
             </form>
 
             <h3 style="color: #1e293b; margin-top: 10px;">Histórico Detalhado ({len(registros_filtrados)} linha(s))</h3>
-            <table>
-                <tr>
-                    <th>Data</th>
-                    <th>Mês/Ano</th>
-                    <th>Chave Lote</th>
-                    <th>Tipo</th>
-                    <th>Inspetor</th>
-                    <th>Fornecedor</th>
-                    <th>N° OP</th>
-                    <th>Família</th>
-                    <th>Referência</th>
-                    <th>Qtd Prontas</th>
-                    <th>Qtd Inspecionadas</th>
-                    <th>Início</th>
-                    <th>Fim</th>
-                    <th>Duração (min)</th>
-                    <th>Tamanho</th>
-                    <th>Defeito</th>
-                    <th>Qtd Defeito</th>
-                    <th>Status Lote</th>
-                    <th>Alterado em</th>
-                    <th>Ações</th>
-                </tr>
+            <div class="table-scroll">
+                <table>
+                    <tr>
+                        <th>Data</th>
+                        <th>Mês/Ano</th>
+                        <th>Chave Lote</th>
+                        <th>Tipo</th>
+                        <th>Inspetor</th>
+                        <th>Fornecedor</th>
+                        <th>N° OP</th>
+                        <th>Família</th>
+                        <th>Referência</th>
+                        <th>Qtd Prontas</th>
+                        <th>Qtd Inspecionadas</th>
+                        <th>Início</th>
+                        <th>Fim</th>
+                        <th>Duração (min)</th>
+                        <th>Tamanho</th>
+                        <th>Defeito</th>
+                        <th>Qtd Defeito</th>
+                        <th>Status Lote</th>
+                        <th>Alterado em</th>
+                        <th>Ações</th>
+                    </tr>
     '''
 
     for reg in registros_filtrados:
         chave_lote, mes_ano, duracao_min = calcular_campos_derivados(reg[1], reg[4], reg[12], reg[13])
+        data_fmt = reg[1].strftime('%d/%m/%Y') if hasattr(reg[1], 'strftime') else str(reg[1])
         status_badge = (
             "<span class='badge-aprovado'>Aprovado</span>" if reg[14] == "Aprovado"
             else "<span class='badge-reprovado'>Reprovado</span>" if reg[14] == "Reprovado"
@@ -1232,7 +1233,7 @@ def historico():
         dur_txt = f"{duracao_min} min" if duracao_min != "" else ""
         dt_alt = reg[16].strftime('%d/%m/%Y %H:%M') if reg[16] else "-"
         html += (
-            f"<tr><td>{reg[1]}</td><td>{mes_ano}</td><td>{chave_lote}</td><td>{tipo_badge}</td>"
+            f"<tr><td>{data_fmt}</td><td>{mes_ano}</td><td>{chave_lote}</td><td>{tipo_badge}</td>"
             f"<td>{reg[2]}</td><td>{reg[3]}</td><td>{reg[4]}</td><td>{reg[5]}</td>"
             f"<td>{reg[6]}</td><td>{reg[7]}</td><td>{reg[8]}</td><td>{h_ini}</td>"
             f"<td>{h_f}</td><td>{dur_txt}</td><td>{reg[9]}</td><td>{reg[10]}</td>"
@@ -1243,7 +1244,8 @@ def historico():
         )
 
     html += '''
-            </table>
+                </table>
+            </div>
 
             <div class="log-box">
                 <h3 style="color: #1e293b; margin-top: 0;">🛡️ Log de Auditoria (Últimas Edições, Exclusões e Cadastros)</h3>
