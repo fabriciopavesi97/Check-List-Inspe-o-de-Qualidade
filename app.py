@@ -1,11 +1,14 @@
 import csv
+import hmac
 import io
 import os
 from datetime import datetime, time
 import psycopg2
-from flask import Flask, Response, redirect, render_template, request, url_for
+from flask import Flask, Response, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'chave-secreta-checklist-qualidade-2026')
+SENHA_CADASTROS = os.environ.get('CADASTRO_SENHA', 'estoque12')
 
 INSPETORES_PADRAO = ["Inspetor 1", "Inspetor 2", "Inspetor 3", "Inspetor 4"]
 LOCAIS_INSPECAO = ["Externa", "Ibirama", "Brusque"]
@@ -39,8 +42,10 @@ TAMANHOS = [
     "40", "42", "44", "46", "48", "50", "U"
 ]
 
+DEFEITO_LOTE_PERFEITO = "Nenhum Defeito Encontrado (Lote Perfeito)"
+
 DEFEITOS_PADRAO = [
-    "Nenhum Defeito Encontrado (Lote Perfeito)",
+    DEFEITO_LOTE_PERFEITO,
     "Alça Torcida",
     "Arremate com bolinha",
     "Arremate desencontrado",
@@ -117,7 +122,6 @@ def init_db():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Tabelas de catálogo centralizadas no banco
         cur.execute('''
             CREATE TABLE IF NOT EXISTS catalogo_fornecedores (
                 id SERIAL PRIMARY KEY,
@@ -141,7 +145,6 @@ def init_db():
             );
         ''')
 
-        # Tabela principal de inspeções
         cur.execute('''
             CREATE TABLE IF NOT EXISTS checklist_qualidade (
                 id SERIAL PRIMARY KEY,
@@ -167,19 +170,17 @@ def init_db():
             );
         ''')
 
-        # Garante colunas novas caso a tabela já exista
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS tipo_inspecao VARCHAR(30) DEFAULT '1ª Inspeção';")
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_inicio TIME;")
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS hora_fim TIME;")
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS status_lote VARCHAR(20);")
         cur.execute("ALTER TABLE checklist_qualidade ADD COLUMN IF NOT EXISTS data_atualizacao TIMESTAMP;")
 
-        # Tabela de log de alterações e exclusões
         cur.execute('''
             CREATE TABLE IF NOT EXISTS log_auditoria_checklist (
                 id SERIAL PRIMARY KEY,
                 registro_id INT,
-                acao VARCHAR(20) NOT NULL,
+                acao VARCHAR(30) NOT NULL,
                 nr_op VARCHAR(50),
                 fornecedor VARCHAR(150),
                 inspetor VARCHAR(100),
@@ -187,8 +188,8 @@ def init_db():
                 data_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         ''')
+        cur.execute("ALTER TABLE log_auditoria_checklist ALTER COLUMN acao TYPE VARCHAR(30);")
 
-        # Popula catálogos caso estejam vazios
         for f in FORNECEDORES_PADRAO:
             cur.execute(
                 "INSERT INTO catalogo_fornecedores (nome, ativo) VALUES (%s, TRUE) ON CONFLICT (nome) DO NOTHING;",
@@ -208,7 +209,6 @@ def init_db():
                 (d, ordem)
             )
 
-        # View pronta para o Power BI com colunas calculadas
         cur.execute("DROP VIEW IF EXISTS vw_checklist_qualidade_bi;")
         cur.execute('''
             CREATE VIEW vw_checklist_qualidade_bi AS
@@ -265,7 +265,7 @@ def obter_catalogos():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        cur.execute("SELECT nome FROM catalogo_fornecedores WHERE ativo = TRUE ORDER BY id ASC;")
+        cur.execute("SELECT nome FROM catalogo_fornecedores WHERE ativo = TRUE ORDER BY nome ASC;")
         fornecedores = [row[0] for row in cur.fetchall()] or FORNECEDORES_PADRAO
 
         cur.execute("SELECT nome FROM catalogo_inspetores WHERE ativo = TRUE ORDER BY id ASC;")
@@ -534,6 +534,369 @@ def excluir(id):
     return redirect(url_for('historico'))
 
 
+# -------------------------------------------------------------------------
+# ÁREA PROTEGIDA DE CADASTROS (SENHA: estoque12)
+# -------------------------------------------------------------------------
+@app.route('/cadastros/login', methods=['POST'])
+def cadastros_login():
+    senha_informada = request.form.get('senha', '')
+    if hmac.compare_digest(senha_informada, SENHA_CADASTROS):
+        session['cadastros_autenticado'] = True
+        return redirect(url_for('cadastros'))
+    return redirect(url_for('cadastros', erro_login=1))
+
+
+@app.route('/cadastros/logout', methods=['GET'])
+def cadastros_logout():
+    session.pop('cadastros_autenticado', None)
+    return redirect(url_for('index'))
+
+
+@app.route('/cadastros/adicionar', methods=['POST'])
+def cadastros_adicionar():
+    if not session.get('cadastros_autenticado'):
+        return redirect(url_for('cadastros'))
+
+    categoria = request.form.get('categoria')
+    nome = (request.form.get('nome') or '').strip()
+
+    if not nome:
+        return redirect(url_for('cadastros', msg='Informe um nome válido.', tipo='erro'))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    if categoria == 'fornecedor':
+        nome_fmt = nome.upper()
+        cur.execute(
+            "INSERT INTO catalogo_fornecedores (nome, ativo) VALUES (%s, TRUE) "
+            "ON CONFLICT (nome) DO UPDATE SET ativo = TRUE RETURNING id;",
+            (nome_fmt,)
+        )
+        item_id = cur.fetchone()[0]
+        registrar_log(
+            cur, item_id, "CADASTRO_FORNECEDOR", "-", nome_fmt, "Admin",
+            f"Fornecedor '{nome_fmt}' adicionado/ativado no catálogo."
+        )
+        msg = f"Fornecedor '{nome_fmt}' salvo com sucesso!"
+
+    elif categoria == 'inspetor':
+        cur.execute(
+            "INSERT INTO catalogo_inspetores (nome, ativo) VALUES (%s, TRUE) "
+            "ON CONFLICT (nome) DO UPDATE SET ativo = TRUE RETURNING id;",
+            (nome,)
+        )
+        item_id = cur.fetchone()[0]
+        registrar_log(
+            cur, item_id, "CADASTRO_INSPETOR", "-", "-", nome,
+            f"Inspetor '{nome}' adicionado/ativado no catálogo."
+        )
+        msg = f"Inspetor '{nome}' salvo com sucesso!"
+
+    elif categoria == 'defeito':
+        cur.execute(
+            "INSERT INTO catalogo_defeitos (nome, ordem_fixa, ativo) VALUES (%s, 100, TRUE) "
+            "ON CONFLICT (nome) DO UPDATE SET ativo = TRUE RETURNING id;",
+            (nome,)
+        )
+        item_id = cur.fetchone()[0]
+        registrar_log(
+            cur, item_id, "CADASTRO_DEFEITO", "-", "-", "Admin",
+            f"Defeito '{nome}' adicionado/ativado no catálogo."
+        )
+        msg = f"Defeito '{nome}' salvo com sucesso!"
+
+    else:
+        cur.close()
+        conn.close()
+        return redirect(url_for('cadastros', msg='Categoria inválida.', tipo='erro'))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for('cadastros', msg=msg, tipo='sucesso'))
+
+
+@app.route('/cadastros/alternar/<string:categoria>/<int:item_id>', methods=['POST'])
+def cadastros_alternar(categoria, item_id):
+    if not session.get('cadastros_autenticado'):
+        return redirect(url_for('cadastros'))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    if categoria == 'fornecedor':
+        cur.execute(
+            "UPDATE catalogo_fornecedores SET ativo = NOT ativo WHERE id = %s RETURNING nome, ativo;",
+            (item_id,)
+        )
+        row = cur.fetchone()
+        if row:
+            status_txt = "ativado" if row[1] else "inativado"
+            registrar_log(
+                cur, item_id, "STATUS_FORNECEDOR", "-", row[0], "Admin",
+                f"Fornecedor '{row[0]}' {status_txt}."
+            )
+            msg = f"Fornecedor '{row[0]}' {status_txt}."
+        else:
+            msg = "Item não encontrado."
+
+    elif categoria == 'inspetor':
+        cur.execute(
+            "UPDATE catalogo_inspetores SET ativo = NOT ativo WHERE id = %s RETURNING nome, ativo;",
+            (item_id,)
+        )
+        row = cur.fetchone()
+        if row:
+            status_txt = "ativado" if row[1] else "inativado"
+            registrar_log(
+                cur, item_id, "STATUS_INSPETOR", "-", "-", row[0],
+                f"Inspetor '{row[0]}' {status_txt}."
+            )
+            msg = f"Inspetor '{row[0]}' {status_txt}."
+        else:
+            msg = "Item não encontrado."
+
+    elif categoria == 'defeito':
+        cur.execute("SELECT nome, ativo FROM catalogo_defeitos WHERE id = %s;", (item_id,))
+        row = cur.fetchone()
+        if row and row[0] == DEFEITO_LOTE_PERFEITO:
+            cur.close()
+            conn.close()
+            return redirect(url_for(
+                'cadastros',
+                msg="O item padrão 'Nenhum Defeito Encontrado (Lote Perfeito)' não pode ser inativado.",
+                tipo='erro'
+            ))
+
+        cur.execute(
+            "UPDATE catalogo_defeitos SET ativo = NOT ativo WHERE id = %s RETURNING nome, ativo;",
+            (item_id,)
+        )
+        row = cur.fetchone()
+        if row:
+            status_txt = "ativado" if row[1] else "inativado"
+            registrar_log(
+                cur, item_id, "STATUS_DEFEITO", "-", "-", "Admin",
+                f"Defeito '{row[0]}' {status_txt}."
+            )
+            msg = f"Defeito '{row[0]}' {status_txt}."
+        else:
+            msg = "Item não encontrado."
+
+    else:
+        cur.close()
+        conn.close()
+        return redirect(url_for('cadastros', msg='Categoria inválida.', tipo='erro'))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect(url_for('cadastros', msg=msg, tipo='sucesso'))
+
+
+@app.route('/cadastros', methods=['GET'])
+def cadastros():
+    if not session.get('cadastros_autenticado'):
+        erro_login = request.args.get('erro_login')
+        alerta = (
+            '<div class="alert-erro">⛔ Senha incorreta. Acesso negado.</div>'
+            if erro_login else ''
+        )
+        return f'''
+        <!DOCTYPE html>
+        <html lang="pt-br">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Acesso Restrito - Cadastros</title>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 30px; background: #f0f2f5; color: #333; }}
+                .login-box {{ max-width: 420px; margin: 60px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
+                h2 {{ margin-top: 0; color: #1e293b; font-size: 20px; }}
+                p {{ color: #64748b; font-size: 14px; }}
+                label {{ display: block; font-weight: 600; font-size: 13px; color: #475569; margin-bottom: 6px; }}
+                input[type="password"] {{ width: 100%; padding: 11px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 15px; margin-bottom: 16px; }}
+                button {{ width: 100%; padding: 12px; background: #1e293b; color: white; border: none; border-radius: 6px; font-weight: 700; font-size: 14px; cursor: pointer; }}
+                button:hover {{ background: #0f172a; }}
+                .alert-erro {{ background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; font-weight: 600; text-align: center; }}
+                .voltar {{ display: block; text-align: center; margin-top: 15px; color: #3b82f6; text-decoration: none; font-size: 13px; font-weight: 600; }}
+            </style>
+        </head>
+        <body>
+            <div class="login-box">
+                <h2>🔒 Área Restrita de Cadastros</h2>
+                <p>Informe a senha de gestão para gerenciar fornecedores, inspetores e defeitos.</p>
+                {alerta}
+                <form method="POST" action="/cadastros/login">
+                    <label for="senha">Senha de Acesso:</label>
+                    <input type="password" id="senha" name="senha" placeholder="Digite a senha" required autofocus>
+                    <button type="submit">Entrar em Cadastros</button>
+                </form>
+                <a href="/" class="voltar">← Voltar para o Check List</a>
+            </div>
+        </body>
+        </html>
+        '''
+
+    msg = request.args.get('msg', '')
+    tipo = request.args.get('tipo', 'sucesso')
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, nome, ativo FROM catalogo_fornecedores ORDER BY ativo DESC, nome ASC;")
+    fornecedores = cur.fetchall()
+
+    cur.execute("SELECT id, nome, ativo FROM catalogo_inspetores ORDER BY ativo DESC, id ASC;")
+    inspetores = cur.fetchall()
+
+    cur.execute("SELECT id, nome, ativo FROM catalogo_defeitos ORDER BY ordem_fixa ASC, ativo DESC, nome ASC;")
+    defeitos = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    alerta_html = ""
+    if msg:
+        classe = "alert-erro" if tipo == "erro" else "alert-sucesso"
+        alerta_html = f'<div class="{classe}">{msg}</div>'
+
+    linhas_fornecedores = ""
+    for item_id, nome, ativo in fornecedores:
+        badge = '<span class="badge-ativo">Ativo</span>' if ativo else '<span class="badge-inativo">Inativo</span>'
+        btn_txt = "Inativar" if ativo else "Ativar"
+        btn_cls = "btn-inativar" if ativo else "btn-ativar"
+        linhas_fornecedores += (
+            f"<tr><td>{nome}</td><td>{badge}</td>"
+            f"<td><form method='POST' action='/cadastros/alternar/fornecedor/{item_id}' style='margin:0;'>"
+            f"<button type='submit' class='{btn_cls}'>{btn_txt}</button></form></td></tr>"
+        )
+
+    linhas_inspetores = ""
+    for item_id, nome, ativo in inspetores:
+        badge = '<span class="badge-ativo">Ativo</span>' if ativo else '<span class="badge-inativo">Inativo</span>'
+        btn_txt = "Inativar" if ativo else "Ativar"
+        btn_cls = "btn-inativar" if ativo else "btn-ativar"
+        linhas_inspetores += (
+            f"<tr><td>{nome}</td><td>{badge}</td>"
+            f"<td><form method='POST' action='/cadastros/alternar/inspetor/{item_id}' style='margin:0;'>"
+            f"<button type='submit' class='{btn_cls}'>{btn_txt}</button></form></td></tr>"
+        )
+
+    linhas_defeitos = ""
+    for item_id, nome, ativo in defeitos:
+        badge = '<span class="badge-ativo">Ativo</span>' if ativo else '<span class="badge-inativo">Inativo</span>'
+        if nome == DEFEITO_LOTE_PERFEITO:
+            acao_html = '<span style="color:#64748b;font-size:12px;">Padrão protegido</span>'
+        else:
+            btn_txt = "Inativar" if ativo else "Ativar"
+            btn_cls = "btn-inativar" if ativo else "btn-ativar"
+            acao_html = (
+                f"<form method='POST' action='/cadastros/alternar/defeito/{item_id}' style='margin:0;'>"
+                f"<button type='submit' class='{btn_cls}'>{btn_txt}</button></form>"
+            )
+        linhas_defeitos += f"<tr><td>{nome}</td><td>{badge}</td><td>{acao_html}</td></tr>"
+
+    return f'''
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cadastros do Sistema - Qualidade</title>
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 25px; background: #f0f2f5; color: #333; }}
+            .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); }}
+            .top-bar {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }}
+            h2 {{ margin: 0; color: #1e293b; }}
+            .btns-top {{ display: flex; gap: 10px; }}
+            .btn-link {{ padding: 9px 15px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; color: white; background: #3b82f6; }}
+            .btn-sair {{ padding: 9px 15px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; color: white; background: #ef4444; }}
+            .alert-sucesso {{ background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 12px; border-radius: 8px; margin-bottom: 18px; font-weight: 600; }}
+            .alert-erro {{ background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 12px; border-radius: 8px; margin-bottom: 18px; font-weight: 600; }}
+            .grid-3 {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }}
+            .panel {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }}
+            .panel h3 {{ margin-top: 0; color: #1e293b; font-size: 16px; }}
+            .add-form {{ display: flex; gap: 8px; margin-bottom: 14px; }}
+            .add-form input {{ flex: 1; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }}
+            .add-form button {{ padding: 9px 14px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }}
+            .table-wrap {{ max-height: 430px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: white; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th, td {{ padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 13px; }}
+            th {{ background: #3b82f6; color: white; position: sticky; top: 0; }}
+            .badge-ativo {{ background: #d1fae5; color: #065f46; padding: 3px 7px; border-radius: 4px; font-weight: 600; font-size: 11px; }}
+            .badge-inativo {{ background: #fee2e2; color: #991b1b; padding: 3px 7px; border-radius: 4px; font-weight: 600; font-size: 11px; }}
+            .btn-inativar {{ padding: 4px 9px; background: #f59e0b; color: white; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; }}
+            .btn-ativar {{ padding: 4px 9px; background: #10b981; color: white; border: none; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="top-bar">
+                <h2>⚙️ Gestão de Cadastros (Fornecedores, Inspetores e Defeitos)</h2>
+                <div class="btns-top">
+                    <a href="/" class="btn-link">← Check List</a>
+                    <a href="/historico" class="btn-link">📊 Histórico</a>
+                    <a href="/cadastros/logout" class="btn-sair">🔒 Sair / Bloquear</a>
+                </div>
+            </div>
+
+            {alerta_html}
+
+            <div class="grid-3">
+                <div class="panel">
+                    <h3>🏭 Fornecedores / Facções ({len(fornecedores)})</h3>
+                    <form method="POST" action="/cadastros/adicionar" class="add-form">
+                        <input type="hidden" name="categoria" value="fornecedor">
+                        <input type="text" name="nome" placeholder="Nome da nova facção..." required>
+                        <button type="submit">+ Adicionar</button>
+                    </form>
+                    <div class="table-wrap">
+                        <table>
+                            <tr><th>Nome</th><th>Status</th><th>Ação</th></tr>
+                            {linhas_fornecedores}
+                        </table>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>👷 Inspetores ({len(inspetores)})</h3>
+                    <form method="POST" action="/cadastros/adicionar" class="add-form">
+                        <input type="hidden" name="categoria" value="inspetor">
+                        <input type="text" name="nome" placeholder="Nome do inspetor..." required>
+                        <button type="submit">+ Adicionar</button>
+                    </form>
+                    <div class="table-wrap">
+                        <table>
+                            <tr><th>Nome</th><th>Status</th><th>Ação</th></tr>
+                            {linhas_inspetores}
+                        </table>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>⚠️ Tipos de Defeitos ({len(defeitos)})</h3>
+                    <form method="POST" action="/cadastros/adicionar" class="add-form">
+                        <input type="hidden" name="categoria" value="defeito">
+                        <input type="text" name="nome" placeholder="Descrição do defeito..." required>
+                        <button type="submit">+ Adicionar</button>
+                    </form>
+                    <div class="table-wrap">
+                        <table>
+                            <tr><th>Descrição</th><th>Status</th><th>Ação</th></tr>
+                            {linhas_defeitos}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+
+
+# -------------------------------------------------------------------------
+# HISTÓRICO, FILTROS, EXPORTAÇÃO E AUDITORIA
+# -------------------------------------------------------------------------
 def buscar_registros_filtrados():
     filtro_op = request.args.get('op', '').strip()
     filtro_fornecedor = request.args.get('fornecedor', '').strip()
@@ -678,6 +1041,8 @@ def historico():
         opcoes_fornecedor += f'<option value="{f}" {sel}>{f}</option>'
 
     opcoes_inspetor = '<option value="">Todos os inspetores</option>'
+    for insp in INSPETORES_PADRAO:
+        pass
     for insp in inspetores:
         sel = 'selected' if filtros['inspetor'] == insp else ''
         opcoes_inspetor += f'<option value="{insp}" {sel}>{insp}</option>'
@@ -730,6 +1095,8 @@ def historico():
             .btn-voltar:hover {{ background: #2563eb; }}
             .btn-exportar {{ display: inline-block; padding: 10px 18px; background: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; }}
             .btn-exportar:hover {{ background: #059669; }}
+            .btn-cadastros {{ display: inline-block; padding: 10px 18px; background: #475569; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; }}
+            .btn-cadastros:hover {{ background: #334155; }}
             .btn-filtrar {{ padding: 8px 14px; background: #1e293b; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; }}
             .btn-limpar {{ padding: 8px 14px; background: #e2e8f0; color: #334155; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; }}
             .btn-editar {{ padding: 5px 10px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 12px; margin-right: 5px; }}
@@ -747,6 +1114,7 @@ def historico():
             <div class="top-actions">
                 <a href="/" class="btn-voltar">← Voltar para o Formulário</a>
                 <a href="{url_exportar}" class="btn-exportar">📥 Exportar CSV (Excel)</a>
+                <a href="/cadastros" class="btn-cadastros">⚙️ Cadastros</a>
             </div>
 
             <div class="cards-grid">
@@ -878,7 +1246,7 @@ def historico():
             </table>
 
             <div class="log-box">
-                <h3 style="color: #1e293b; margin-top: 0;">🛡️ Log de Auditoria (Últimas Edições e Exclusões)</h3>
+                <h3 style="color: #1e293b; margin-top: 0;">🛡️ Log de Auditoria (Últimas Edições, Exclusões e Cadastros)</h3>
                 <table>
                     <tr>
                         <th>Data/Hora</th>
@@ -898,7 +1266,7 @@ def historico():
                 f"<td>{l[2] or '-'}</td><td>{l[3] or '-'}</td><td>{l[4] or '-'}</td><td>{l[5]}</td></tr>"
             )
     else:
-        html += "<tr><td colspan='7'>Nenhuma edição ou exclusão registrada até o momento.</td></tr>"
+        html += "<tr><td colspan='7'>Nenhuma alteração ou exclusão registrada até o momento.</td></tr>"
 
     html += '''
                 </table>
